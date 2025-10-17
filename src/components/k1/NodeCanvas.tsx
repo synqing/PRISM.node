@@ -115,7 +115,10 @@ export function NodeCanvas({
       if (e.key === 'Tab' && kbdStart) {
         e.preventDefault();
         const targetIsOutput = !kbdStart.isOutput;
-        const selector = `[data-port-id][data-is-output="${targetIsOutput}"]`;
+        const sNode = nodes.find(n => n.id === kbdStart.nodeId);
+        const sPort = sNode ? (kbdStart.isOutput ? sNode.outputs.find(p => p.id === kbdStart.portId) : sNode.inputs.find(p => p.id === kbdStart.portId)) : null;
+        const typeSel = sPort ? `[data-port-type="${sPort.type}"]` : '';
+        const selector = `[data-port-id][data-is-output="${targetIsOutput}"]${typeSel}`;
         const list = Array.from((canvasRef.current || document).querySelectorAll<HTMLElement>(selector));
         if (list.length === 0) return;
         const active = document.activeElement as HTMLElement | null;
@@ -137,9 +140,13 @@ export function NodeCanvas({
         if (kbdStart.isOutput !== isOutput) {
           const from = kbdStart.isOutput ? { nodeId: kbdStart.nodeId, portId: kbdStart.portId } : { nodeId, portId };
           const to = kbdStart.isOutput ? { nodeId, portId } : { nodeId: kbdStart.nodeId, portId: kbdStart.portId };
-          const node = nodes.find((n) => n.id === (kbdStart.isOutput ? kbdStart.nodeId : nodeId));
-          const port = node ? (kbdStart.isOutput ? node.outputs.find((p) => p.id === kbdStart.portId) : node.inputs.find((p) => p.id === portId)) : null;
-          onWireCreate?.({ from, to, type: (port?.type ?? 'color') as any });
+          const sNode2 = nodes.find(n => n.id === kbdStart.nodeId);
+          const sPort2 = sNode2 ? (kbdStart.isOutput ? sNode2.outputs.find(p => p.id === kbdStart.portId) : sNode2.inputs.find(p => p.id === kbdStart.portId)) : null;
+          const eNode2 = nodes.find(n => n.id === nodeId);
+          const ePort2 = eNode2 ? (isOutput ? eNode2.outputs.find(p => p.id === portId) : eNode2.inputs.find(p => p.id === portId)) : null;
+          if (sPort2 && ePort2 && sPort2.type === ePort2.type) {
+            onWireCreate?.({ from, to, type: (sPort2.type as any) });
+          }
         }
         setKbdStart(null);
       } else {
