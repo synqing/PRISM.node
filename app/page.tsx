@@ -1,7 +1,18 @@
-"use client"
+import { LightLab } from "@/components/k1/LightLab"
+import { Toaster } from "sonner"
 
-import { ImageWithFallback } from "../3User-Facing App Wireframes/src/components/figma/ImageWithFallback"
-
-export default function SyntheticV0PageForDeployment() {
-  return <ImageWithFallback />
+export default function Page() {
+  return (
+    <>
+      <LightLab />
+      <Toaster
+        position="bottom-right"
+        toastOptions={{
+          classNames: {
+            toast: "glass shadow-elevation-2 border-border/50",
+          },
+        }}
+      />
+    </>
+  )
 }
