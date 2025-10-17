@@ -75,6 +75,7 @@ export function Node({
                   data-node-id={data.id}
                   data-port-id={port.id}
                   data-is-output="false"
+                  aria-label={`Input port ${port.label} (${port.type})`}
                   className={`
                     w-4 h-4 rounded-full border-2 border-black/30
                     cursor-pointer hover:scale-150 transition-all duration-150
@@ -128,6 +129,7 @@ export function Node({
                   data-node-id={data.id}
                   data-port-id={port.id}
                   data-is-output="true"
+                  aria-label={`Output port ${port.label} (${port.type})`}
                   className={`
                     w-4 h-4 rounded-full border-2 border-black/30
                     cursor-pointer hover:scale-150 transition-all duration-150

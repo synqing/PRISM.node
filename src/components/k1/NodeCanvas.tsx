@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from 'react';
 import { Node } from './Node';
 import { type NodeData, type Wire, PORT_COLORS } from './types';
+import { HEADER, PAD, PORT_H, GAP, PORT_CENTER_OFFSET, getNodeWidth } from './geometry';
 
 interface NodeCanvasProps {
   nodes: NodeData[];
@@ -190,15 +191,16 @@ export function NodeCanvas({
     const node = nodes.find((n) => n.id === nodeId);
     if (!node) return { x: 0, y: 0 };
 
-    const nodeWidth = node.compact ? 180 : 240;
+    const nodeWidth = getNodeWidth(node.compact);
     const portList = isOutput ? node.outputs : node.inputs;
     const portIndex = portList.findIndex((p) => p.id === portId);
     
     // Port centers are at the node edge after accounting for margin
     const x = isOutput ? node.position.x + nodeWidth : node.position.x;
-    
-    // Y calculation: header(40px) + padding(12px) + portHeight/2(8px) + portIndex * (portHeight(16px) + gap(8px))
-    const y = node.position.x + 40 + 12 + 8 + (portIndex * 24);
+
+    // Y calculation using shared geometry constants
+    // node.position.y + HEADER + PAD + PORT_CENTER_OFFSET + portIndex * (PORT_H + GAP)
+    const y = node.position.y + HEADER + PAD + PORT_CENTER_OFFSET + portIndex * (PORT_H + GAP);
 
     return { x, y };
   };
