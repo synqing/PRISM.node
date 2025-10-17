@@ -56,3 +56,20 @@ If you change UI primitives, update all affected screens in the same branch.
 Prompt template (use when in doubt)
 
 “Implement <Screen> from Figma <link/description> as React (Vite) in src/components/screens/<Screen>/<Screen>.tsx using components/ui primitives (Button, Tabs, Dialog, Input). Keep responsive with flex/grid. No Next.js. Ensure npm run build succeeds.”
+
+## Phase A — Active Scope (Agent Read Me First)
+
+- Do ONLY layout/sizing/hierarchy work per WHY.spec.md. Defer minimap and all new features.
+- Implement these SPECs and nothing else:
+  - SPEC-LAYOUT-01: Workspace Shell (grid + scroll rules)
+  - SPEC-LAYOUT-02: Persistence + Reset Layout
+  - SPEC-LAYOUT-03: Panel Density + Contrast
+- Keep sizes as tokens: `--toolbar-h: 56px`, `--lib-w: 280px` (mini 72; resize 240–360), `--insp-w: 320px` (resize 280–420), `--panel-pad: 12px`, `--row-h: 32px`, `--font-base: 14px`.
+- Scroll rules: side panels scroll; canvas pans/zooms only; no document scroll during pan.
+- Contrast targets: text ≥ 4.5:1; non-text UI ≥ 3:1. Use scrims/focus.
+- Persist prefs to localStorage (keys in WHY.spec.md). Add a “Reset layout” action.
+
+PR rules
+- Title format: `feat(layout): <spec-name> (SPEC-LAYOUT-0x)`
+- Body: link WHY.spec.md, paste acceptance checklist, check all boxes.
+- Do not add a minimap, smart edges, or new components outside the listed files.
