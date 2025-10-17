@@ -238,22 +238,16 @@ export function LightLab() {
   };
 
   return (
-    <div className="h-screen flex bg-[var(--k1-bg)] relative overflow-hidden">
-      {/* VIVID Gradient Background - Makes glass visible */}
-      <div className="absolute inset-0 pointer-events-none opacity-60">
+    <div className="workspace bg-[var(--k1-bg)]">
+      {/* Background decoration */}
+      <div className="workspace__canvas absolute inset-0 pointer-events-none opacity-60" aria-hidden>
         <div className="absolute top-0 right-0 w-[1000px] h-[1000px] bg-gradient-to-bl from-[var(--k1-accent)]/40 via-[var(--k1-accent-2)]/30 to-transparent blur-[100px] animate-pulse" style={{ animationDuration: '8s' }} />
         <div className="absolute bottom-0 left-0 w-[900px] h-[900px] bg-gradient-to-tr from-[var(--k1-accent-2)]/35 via-purple-500/25 to-transparent blur-[100px] animate-pulse" style={{ animationDuration: '12s', animationDelay: '2s' }} />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-br from-pink-500/20 via-orange-500/20 to-transparent blur-[120px] animate-pulse" style={{ animationDuration: '15s', animationDelay: '4s' }} />
       </div>
 
-      {/* Left: Node Library */}
-      <div className="w-64 flex-shrink-0 relative z-10">
-        <NodeLibrary onAddNode={handleAddNode} />
-      </div>
-
-      {/* Center: Canvas with Toolbar */}
-      <div className="flex-1 flex flex-col relative z-0">
-        {/* Toolbar - Only over canvas */}
+      {/* Top: Toolbar */}
+      <div className="workspace__toolbar">
         <K1Toolbar
           playing={playing}
           onPlayPause={() => setPlaying(!playing)}
@@ -266,24 +260,29 @@ export function LightLab() {
           nodeCount={nodes.length}
           wireCount={wires.length}
         />
+      </div>
 
-        {/* Canvas */}
-        <div className="flex-1">
-          <NodeCanvas
-            nodes={nodes}
-            wires={wires}
-            selectedNodeId={selectedNodeId || undefined}
-            onNodeSelect={setSelectedNodeId}
-            onNodeMove={handleNodeMove}
-            onNodeDelete={handleNodeDelete}
-            onWireCreate={handleWireCreate}
-            onWireDelete={handleWireDelete}
-          />
-        </div>
+      {/* Left: Node Library */}
+      <div className="workspace__library">
+        <NodeLibrary onAddNode={handleAddNode} />
+      </div>
+      
+      {/* Center: Canvas */}
+      <div className="workspace__canvas">
+        <NodeCanvas
+          nodes={nodes}
+          wires={wires}
+          selectedNodeId={selectedNodeId || undefined}
+          onNodeSelect={setSelectedNodeId}
+          onNodeMove={handleNodeMove}
+          onNodeDelete={handleNodeDelete}
+          onWireCreate={handleWireCreate}
+          onWireDelete={handleWireDelete}
+        />
       </div>
 
       {/* Right: Inspector */}
-      <div className="w-80 flex-shrink-0 relative z-10">
+      <div className="workspace__inspector">
         <NodeInspector
           node={selectedNode}
           onParameterChange={handleParameterChange}
