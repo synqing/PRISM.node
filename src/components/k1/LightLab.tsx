@@ -5,7 +5,7 @@ import { NodeInspector } from './NodeInspector';
 import { K1Toolbar } from './K1Toolbar';
 import type { NodeData, Wire, Port } from './types';
 import { toast } from 'sonner@2.0.3';
-import { stubTick, PREVIEW_SPEC } from './engine';
+import { stubTick, PREVIEW_SPEC, ENGINE_CONFIG } from './engine';
 
 // Helper to create sample nodes
 function createNode(
@@ -163,7 +163,7 @@ export function LightLab() {
   };
   const rafRef = useRef<number | null>(null);
   const startRef = useRef<number | null>(null);
-  const [lastFrame, setLastFrame] = useState<Uint8Array | Float32Array | null>(null);
+  const [lastFrame, setLastFrame] = useState<Uint8Array | null>(null);
 
   const handleAddNode = (templateId: string) => {
     const newNode = createNode(
@@ -281,7 +281,7 @@ export function LightLab() {
   };
 
   const handleExportDownload = () => {
-    const payload = { ...buildExportPayload() };
+    const payload = { ...buildExportPayload(), meta: { pixelCount: ENGINE_CONFIG.pixelCount, colorFormat: ENGINE_CONFIG.colorFormat, fps: PREVIEW_SPEC.fps, mapping: ENGINE_CONFIG.mapping } };
     const json = JSON.stringify(payload, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
