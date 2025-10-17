@@ -15,3 +15,11 @@ export const stubTick: GraphTick = (_nodes, _wires, t) => {
   return { frames: frame };
 };
 
+// Export schema (aligns with tooling expectations)
+export interface GraphExport {
+  nodes: any[];
+  wires: any[];
+  params: Record<string, unknown>;
+  preview?: number[]; // flattened preview frame for quick inspection
+  exportedAt: string;
+}

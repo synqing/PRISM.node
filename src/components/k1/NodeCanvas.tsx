@@ -260,6 +260,9 @@ export function NodeCanvas({
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
+            <marker id="k1-arrow" viewBox="0 0 6 6" refX="6" refY="3" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0 0 L6 3 L0 6 Z" fill="currentColor" />
+            </marker>
           </defs>
 
           {/* Existing wires */}
@@ -288,6 +291,7 @@ export function NodeCanvas({
                   fill="none"
                   filter="url(#glow)"
                   style={{ pointerEvents: 'none' }}
+                  markerEnd="url(#k1-arrow)"
                 />
               </g>
             );

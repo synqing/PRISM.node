@@ -124,6 +124,7 @@ export function LightLab() {
   const [mode, setMode] = useState<'edit' | 'perform'>(() => (localStorage.getItem('k1.mode') as any) || 'edit');
   const [density, setDensity] = useState<'compact' | 'cozy'>(() => (localStorage.getItem('k1.density') as any) || 'compact');
   const [zoomPreset, setZoomPreset] = useState<number>(() => Number(localStorage.getItem('k1.zoomPreset')) || 1);
+  const [edgeMode, setEdgeMode] = useState<'bezier' | 'orthogonal'>(() => (localStorage.getItem('k1.edges') as any) || 'bezier');
 
   // apply widths to CSS variables
   useEffect(() => {
@@ -307,6 +308,12 @@ export function LightLab() {
           onToggleGrid={() => setGridOn((v) => !v)}
           onZoomPreset={(z) => setZoomPreset(z)}
           currentZoom={zoomPreset}
+          orthogonal={edgeMode === 'orthogonal'}
+          onToggleEdges={() => {
+            const next = edgeMode === 'orthogonal' ? 'bezier' : 'orthogonal';
+            setEdgeMode(next);
+            localStorage.setItem('k1.edges', next);
+          }}
         />
       </div>
 
