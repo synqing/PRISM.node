@@ -1,4 +1,5 @@
 import { Play, Pause, RotateCcw, Save, Upload, Download, Maximize2, Settings } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 
@@ -9,6 +10,8 @@ interface K1ToolbarProps {
   onResetLayout?: () => void; // new layout reset
   onSave?: () => void;
   onExport?: () => void;
+  onExportCopy?: () => void;
+  onExportDownload?: () => void;
   onImport?: () => void;
   onFullscreen?: () => void;
   onSettings?: () => void;
@@ -29,6 +32,8 @@ export function K1Toolbar({
   onResetLayout,
   onSave,
   onExport,
+  onExportCopy,
+  onExportDownload,
   onImport,
   onFullscreen,
   onSettings,
@@ -164,16 +169,23 @@ export function K1Toolbar({
           Save
         </Button>
         
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onExport}
-          className="h-9 px-3"
-          title="Export to K1"
-        >
-          <Download className="w-4 h-4 mr-2" />
-          Export
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-9 px-3"
+              title="Export options"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={onExportCopy}>Copy JSON</DropdownMenuItem>
+            <DropdownMenuItem onClick={onExportDownload}>Download JSON</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <div className="w-px h-6 bg-[rgba(255,255,255,0.1)] mx-1" />
 

@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
+import { toast } from 'sonner@2.0.3';
 import { Node } from './Node';
 import { type NodeData, type Wire, PORT_COLORS } from './types';
 import { HEADER, PAD, PORT_H, GAP, PORT_CENTER_OFFSET, getNodeWidth } from './geometry';
@@ -146,6 +147,8 @@ export function NodeCanvas({
           const ePort2 = eNode2 ? (isOutput ? eNode2.outputs.find(p => p.id === portId) : eNode2.inputs.find(p => p.id === portId)) : null;
           if (sPort2 && ePort2 && sPort2.type === ePort2.type) {
             onWireCreate?.({ from, to, type: (sPort2.type as any) });
+          } else {
+            toast.error('Incompatible ports');
           }
         }
         setKbdStart(null);

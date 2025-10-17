@@ -258,29 +258,39 @@ export function LightLab() {
   }, [playing, nodes, wires]);
 
   // Export current graph (stub)
-  const handleExport = async () => {
+  const buildExportPayload = () => ({
+    nodes,
+    wires,
+    params: {},
+    preview: lastFrame ? Array.from(lastFrame as Uint8Array) : undefined,
+    framesMeta: PREVIEW_SPEC,
+    exportedAt: new Date().toISOString(),
+  });
+
+  const handleExportCopy = async () => {
     const payload = {
-      nodes,
-      wires,
-      params: {},
-      preview: lastFrame ? Array.from(lastFrame as Uint8Array) : undefined,
-      framesMeta: PREVIEW_SPEC,
-      exportedAt: new Date().toISOString(),
+      ...buildExportPayload(),
     };
     const json = JSON.stringify(payload, null, 2);
     try {
       await navigator.clipboard.writeText(json);
-      toast.success('Graph JSON copied to clipboard');
+      toast.success('Export JSON copied to clipboard');
     } catch {
-      toast.info('Download graph.json');
-      const blob = new Blob([json], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'graph.json';
-      a.click();
-      URL.revokeObjectURL(url);
+      toast.error('Clipboard unavailable');
     }
+  };
+
+  const handleExportDownload = () => {
+    const payload = { ...buildExportPayload() };
+    const json = JSON.stringify(payload, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'graph.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Download started: graph.json');
   };
 
   return (
@@ -299,7 +309,9 @@ export function LightLab() {
           onPlayPause={() => setPlaying(!playing)}
           onResetLayout={handleResetLayout}
           onSave={() => toast.success('Pattern saved')}
-          onExport={handleExport}
+          onExport={handleExportDownload}
+          onExportCopy={handleExportCopy}
+          onExportDownload={handleExportDownload}
           onImport={() => toast.info('Import pattern')}
           onFullscreen={() => document.documentElement.requestFullscreen()}
           onSettings={() => toast.info('Settings')}
