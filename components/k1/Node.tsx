@@ -33,13 +33,15 @@ export function Node({ data, selected, onSelect, onDelete, onPortMouseDown }: No
         absolute rounded-lg
         border transition-all duration-150
         glass-node glass-corners glass-sparkle tech-spotlight corner-notch frosted-texture
-        ${selected ? "border-[var(--k1-accent)] shadow-[0_0_0_4px_rgba(110,231,243,0.5)] glow-accent" : ""}
+        ${selected ? "border-[var(--k1-accent)] shadow-[0_0_0_4px_rgba(110,231,243,0.5)] glow-accent" : "border-[rgba(255,255,255,0.12)]"}
         ${data.compact ? "min-w-[180px]" : "min-w-[240px]"}
         cursor-move select-none hover-lift
       `}
       style={{
         left: data.position.x,
         top: data.position.y,
+        borderRadius: "12px",
+        overflow: "hidden",
       }}
       onClick={onSelect}
     >

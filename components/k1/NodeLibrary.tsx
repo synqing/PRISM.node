@@ -86,17 +86,17 @@ export function NodeLibrary({ onAddNode }: NodeLibraryProps) {
   )
 
   return (
-    <div className="h-full flex flex-col glass-panel glass-corners frosted-texture border-r relative z-10">
+    <div className="h-full flex flex-col glass-panel glass-corners frosted-texture border-r border-[rgba(255,255,255,0.12)] relative z-10">
       {/* Header */}
       <div className="p-4 border-b border-[rgba(255,255,255,0.12)] bg-gradient-to-b from-white/10 to-transparent relative z-10">
-        <h2 className="mb-3">Node Library</h2>
+        <h2 className="mb-3 text-sm font-semibold">Node Library</h2>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--k1-text-dim)]" />
           <Input
             placeholder="Search nodes..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 bg-[var(--k1-bg)] border-[var(--k1-border)]"
+            className="pl-9 text-sm bg-[var(--k1-bg)] border-[var(--k1-border)]"
           />
         </div>
       </div>
@@ -105,7 +105,7 @@ export function NodeLibrary({ onAddNode }: NodeLibraryProps) {
       <div className="p-2 border-b border-[rgba(255,255,255,0.08)] flex gap-1 flex-wrap bg-black/10">
         <button
           onClick={() => setSelectedCategory("all")}
-          className={`px-2 py-1 rounded text-xs transition-colors ${
+          className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
             selectedCategory === "all"
               ? "bg-[var(--k1-accent)] text-black"
               : "bg-[var(--k1-bg)] text-[var(--k1-text-dim)] hover:text-[var(--k1-text)]"
@@ -117,14 +117,13 @@ export function NodeLibrary({ onAddNode }: NodeLibraryProps) {
           <button
             key={category}
             onClick={() => setSelectedCategory(category as NodeCategory)}
-            className={`px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 ${
+            className={`px-2 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 ${
               selectedCategory === category
                 ? `bg-[var(--k1-accent)] text-black`
                 : `bg-[var(--k1-bg)] hover:text-[var(--k1-text)] ${info.color}`
             }`}
           >
             {info.icon}
-            {info.label}
           </button>
         ))}
       </div>
@@ -138,7 +137,7 @@ export function NodeLibrary({ onAddNode }: NodeLibraryProps) {
                 <span className={`${CATEGORY_INFO[category as NodeCategory].color}`}>
                   {CATEGORY_INFO[category as NodeCategory].icon}
                 </span>
-                <h3 className="text-xs uppercase tracking-wide text-[var(--k1-text-dim)]">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--k1-text-dim)]">
                   {CATEGORY_INFO[category as NodeCategory].label}
                 </h3>
               </div>
@@ -151,11 +150,11 @@ export function NodeLibrary({ onAddNode }: NodeLibraryProps) {
                   >
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-lg">{node.icon}</span>
-                      <span className="text-sm group-hover:text-[var(--k1-accent)] transition-colors">
+                      <span className="text-sm font-medium group-hover:text-[var(--k1-accent)] transition-colors">
                         {node.title}
                       </span>
                     </div>
-                    <p className="text-[10px] text-[var(--k1-text-dim)] ml-7">{node.description}</p>
+                    <p className="text-[10px] font-normal text-[var(--k1-text-dim)] ml-7">{node.description}</p>
                   </button>
                 ))}
               </div>
