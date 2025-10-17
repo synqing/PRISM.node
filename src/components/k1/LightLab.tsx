@@ -264,6 +264,7 @@ export function LightLab() {
       wires,
       params: {},
       preview: lastFrame ? Array.from(lastFrame as Uint8Array) : undefined,
+      framesMeta: { length: 64, fps: 60 },
       exportedAt: new Date().toISOString(),
     };
     const json = JSON.stringify(payload, null, 2);

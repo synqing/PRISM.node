@@ -40,6 +40,8 @@ export function NodeCanvas({
     type: string;
   } | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [orthogonal] = useState<boolean>(() => (localStorage.getItem('k1.edges') ?? 'bezier') === 'orthogonal');
+  const [kbdStart, setKbdStart] = useState<{ nodeId: string; portId: string; isOutput: boolean } | null>(null);
 
   // Pan with space + drag
   useEffect(() => {
@@ -101,6 +103,52 @@ export function NodeCanvas({
   const handleMouseUp = () => {
     setDraggedNode(null);
   };
+
+  // Keyboard wiring: Enter to start/finish, Esc to cancel, Tab to cycle targets
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setKbdStart(null);
+        setConnectingPort(null);
+        return;
+      }
+      if (e.key === 'Tab' && kbdStart) {
+        e.preventDefault();
+        const targetIsOutput = !kbdStart.isOutput;
+        const selector = `[data-port-id][data-is-output="${targetIsOutput}"]`;
+        const list = Array.from((canvasRef.current || document).querySelectorAll<HTMLElement>(selector));
+        if (list.length === 0) return;
+        const active = document.activeElement as HTMLElement | null;
+        const idx = Math.max(0, list.findIndex((el) => el === active));
+        const nextIdx = (idx + (e.shiftKey ? list.length - 1 : 1)) % list.length;
+        list[nextIdx].focus();
+        return;
+      }
+      if (e.key !== 'Enter') return;
+      const el = document.activeElement as HTMLElement | null;
+      if (!el) return;
+      const nodeId = el.getAttribute('data-node-id');
+      const portId = el.getAttribute('data-port-id');
+      const isOutAttr = el.getAttribute('data-is-output');
+      if (!nodeId || !portId || !isOutAttr) return;
+      const isOutput = isOutAttr === 'true';
+      e.preventDefault();
+      if (kbdStart) {
+        if (kbdStart.isOutput !== isOutput) {
+          const from = kbdStart.isOutput ? { nodeId: kbdStart.nodeId, portId: kbdStart.portId } : { nodeId, portId };
+          const to = kbdStart.isOutput ? { nodeId, portId } : { nodeId: kbdStart.nodeId, portId: kbdStart.portId };
+          const node = nodes.find((n) => n.id === (kbdStart.isOutput ? kbdStart.nodeId : nodeId));
+          const port = node ? (kbdStart.isOutput ? node.outputs.find((p) => p.id === kbdStart.portId) : node.inputs.find((p) => p.id === portId)) : null;
+          onWireCreate?.({ from, to, type: (port?.type ?? 'color') as any });
+        }
+        setKbdStart(null);
+      } else {
+        setKbdStart({ nodeId, portId, isOutput });
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [kbdStart, nodes, onWireCreate]);
 
   const handleWheel = (e: React.WheelEvent) => {
     if (e.metaKey || e.ctrlKey) {
@@ -207,14 +255,17 @@ export function NodeCanvas({
     return { x, y };
   };
 
-  // Generate wire path with bezier curve
+  // Generate wire path (bezier or orthogonal)
   const getWirePath = (from: { x: number; y: number }, to: { x: number; y: number }) => {
-    const dx = to.x - from.x;
-    const dy = to.y - from.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    const controlOffset = Math.min(distance * 0.3, 80);
-
-    return `M ${from.x} ${from.y} C ${from.x + controlOffset} ${from.y}, ${to.x - controlOffset} ${to.y}, ${to.x} ${to.y}`;
+    if (!orthogonal) {
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const controlOffset = Math.min(distance * 0.3, 80);
+      return `M ${from.x} ${from.y} C ${from.x + controlOffset} ${from.y}, ${to.x - controlOffset} ${to.y}, ${to.x} ${to.y}`;
+    }
+    const midX = (from.x + to.x) / 2;
+    return `M ${from.x} ${from.y} L ${midX} ${from.y} L ${midX} ${to.y} L ${to.x} ${to.y}`;
   };
 
   const handleCanvasClick = (e: React.MouseEvent) => {
