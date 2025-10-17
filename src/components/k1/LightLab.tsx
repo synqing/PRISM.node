@@ -333,7 +333,10 @@ export function LightLab() {
           onNodeDelete={handleNodeDelete}
           onWireCreate={handleWireCreate}
           onWireDelete={handleWireDelete}
+<<<<<<< HEAD
           showGrid={gridOn}
+=======
+>>>>>>> origin/v0-friendly
         />
       </div>
 
