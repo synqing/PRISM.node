@@ -80,7 +80,7 @@ export function NodeLibrary({ onAddNode }: NodeLibraryProps) {
   return (
     <div className="h-full flex flex-col glass-panel glass-corners frosted-texture border-r relative z-10">
       {/* Header */}
-      <div className="p-4 border-b border-[rgba(255,255,255,0.12)] bg-gradient-to-b from-white/10 to-transparent relative z-10">
+      <div className="p-4 border-b border-[rgba(255,255,255,0.12)] bg-gradient-to-b from-white/10 to-transparent relative z-10 scrim-top">
         <h2 className="mb-3">Node Library</h2>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--k1-text-dim)]" />
@@ -97,7 +97,7 @@ export function NodeLibrary({ onAddNode }: NodeLibraryProps) {
       <div className="p-2 border-b border-[rgba(255,255,255,0.08)] flex gap-1 flex-wrap bg-black/10">
         <button
           onClick={() => setSelectedCategory('all')}
-          className={`px-2 py-1 rounded text-xs transition-colors ${
+          className={`px-2 row-32 rounded text-xs transition-colors focus-visible-outline ${
             selectedCategory === 'all'
               ? 'bg-[var(--k1-accent)] text-black'
               : 'bg-[var(--k1-bg)] text-[var(--k1-text-dim)] hover:text-[var(--k1-text)]'
@@ -109,7 +109,7 @@ export function NodeLibrary({ onAddNode }: NodeLibraryProps) {
           <button
             key={category}
             onClick={() => setSelectedCategory(category as NodeCategory)}
-            className={`px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 ${
+            className={`px-2 row-32 rounded text-xs transition-colors flex items-center gap-1 focus-visible-outline ${
               selectedCategory === category
                 ? `bg-[var(--k1-accent)] text-black`
                 : `bg-[var(--k1-bg)] hover:text-[var(--k1-text)] ${info.color}`
@@ -139,7 +139,7 @@ export function NodeLibrary({ onAddNode }: NodeLibraryProps) {
                   <button
                     key={node.id}
                     onClick={() => onAddNode?.(node.id)}
-                    className="w-full p-2 rounded border border-[rgba(255,255,255,0.08)] hover:border-[var(--k1-accent)]/50 transition-all text-left group relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent hover:from-white/10 backdrop-blur-sm hover-lift"
+                    className="w-full p-2 row-32 rounded border border-[rgba(255,255,255,0.08)] hover:border-[var(--k1-accent)]/50 transition-all text-left group relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent hover:from-white/10 backdrop-blur-sm hover-lift focus-visible-outline"
                   >
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-lg">{node.icon}</span>

@@ -163,6 +163,20 @@
 .workspace__inspector { grid-area: inspector; overflow: auto; padding: var(--panel-pad); z-index: 20; }
 
 @layer utilities {
+  /* Density utilities */
+  .row-32 { min-height: 32px; }
+  .text-base-14 { font-size: var(--font-base); }
+
+  /* Focus visibility utility for dark glass */
+  .focus-visible-outline:focus-visible {
+    outline: 2px solid var(--focus-outline);
+    outline-offset: 2px;
+  }
+
+  /* Subtle scrim to improve text contrast on glass surfaces */
+  .scrim-top {
+    background-image: linear-gradient(to bottom, var(--scrim), transparent);
+  }
   /* K1 Shadows */
   .shadow-k1-sm {
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);

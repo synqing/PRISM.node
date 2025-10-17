@@ -38,9 +38,9 @@ export function NodeInspector({ node, onParameterChange, onDeleteNode }: NodeIns
   };
 
   return (
-    <div className="h-full flex flex-col glass-panel glass-corners frosted-texture border-l relative z-10">
+    <div className="h-full flex flex-col glass-panel glass-corners frosted-texture border-l relative z-10 text-base-14">
       {/* Header */}
-      <div className="p-4 border-b border-[rgba(255,255,255,0.12)] bg-gradient-to-b from-white/10 to-transparent relative z-10">
+      <div className="p-4 border-b border-[rgba(255,255,255,0.12)] bg-gradient-to-b from-white/10 to-transparent relative z-10 scrim-top">
         <div className="flex items-center justify-between mb-3">
           <h2>Inspector</h2>
           <Button
@@ -93,7 +93,7 @@ export function NodeInspector({ node, onParameterChange, onDeleteNode }: NodeIns
               </div>
 
               {node.parameters.map((param) => (
-                <div key={param.id} className="space-y-2">
+                <div key={param.id} className="space-y-2 row-32">
                   <div className="flex items-center justify-between">
                     <Label className="text-sm">{param.label}</Label>
                     {param.type === 'slider' || param.type === 'number' ? (
@@ -122,7 +122,7 @@ export function NodeInspector({ node, onParameterChange, onDeleteNode }: NodeIns
                       min={param.min}
                       max={param.max}
                       step={param.step ?? 1}
-                      className="w-full px-3 py-2 bg-[var(--k1-bg)] border border-[var(--k1-border)] rounded text-sm font-mono"
+                      className="w-full px-3 py-2 bg-[var(--k1-bg)] border border-[var(--k1-border)] rounded text-sm font-mono focus-visible-outline"
                     />
                   )}
 
