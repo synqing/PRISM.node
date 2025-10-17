@@ -23,9 +23,10 @@ function createNode(
         { id: 'output', label: 'Field', type: 'field' },
       ],
       parameters: [
-        { id: 'angle', label: 'Angle', type: 'slider', value: 0, min: 0, max: 360, step: 1 },
         { id: 'start', label: 'Start', type: 'slider', value: 0, min: 0, max: 100, step: 1 },
         { id: 'end', label: 'End', type: 'slider', value: 100, min: 0, max: 100, step: 1 },
+        { id: 'startColor', label: 'Start Color', type: 'select', value: '#000000', options: ['#000000','#ff007f','#00ffff','#ffffff'] },
+        { id: 'endColor', label: 'End Color', type: 'select', value: '#ffffff', options: ['#ffffff','#00ff95','#ffea00','#000000'] },
       ],
     },
     noise: {

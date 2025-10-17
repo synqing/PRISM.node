@@ -24,6 +24,12 @@ export const ENGINE_CONFIG = {
   pixelCount: 320,
   colorFormat: 'RGB8' as const,
   mapping: 'concat-2x160',
+  channels: [
+    { gpio: 9, count: 160, start: 0, end: 159 },
+    { gpio: 10, count: 160, start: 160, end: 319 },
+  ],
+  // Identity mapping for concat-2x160
+  map: Array.from({ length: 320 }, (_, i) => i),
 };
 
 type RGB = [number, number, number];
@@ -99,14 +105,17 @@ export function tickGraph(nodes: any[], wires: any[], t: number): Uint8Array {
 
     let out: RGB[] = Array.from({ length: N }, () => [0,0,0]);
     if (kind.includes('gradient')) {
-      // 1D grayscale gradient from Start%..End%
+      // Colored gradient: supports start/end color hex; fall back to grayscale percent window
       const start = getParam('start', 0) / 100;
       const end = getParam('end', 100) / 100;
       const a = Math.min(start, end), b = Math.max(start, end);
+      const startHex = (n?.parameters?.find((p: any) => p.id === 'startColor')?.value as string) || '#000000';
+      const endHex = (n?.parameters?.find((p: any) => p.id === 'endColor')?.value as string) || '#FFFFFF';
+      const lut = buildHsvLut(startHex, endHex); // 256 x RGB8
       out = u.map((uu) => {
         const tt = clamp01((uu - a) / Math.max(1e-6, (b - a)));
-        const v = Math.round(tt * 255);
-        return [v, v, v];
+        const idx = Math.max(0, Math.min(255, Math.round(tt * 255))) * 3;
+        return [lut[idx], lut[idx + 1], lut[idx + 2]] as RGB;
       });
     } else if (kind.includes('hue')) {
       const amount = getParam('hue', 0); // degrees
@@ -147,10 +156,11 @@ export function tickGraph(nodes: any[], wires: any[], t: number): Uint8Array {
 
   const frame = new Uint8Array(N * 3);
   for (let i = 0; i < N; i++) {
+    const phys = ENGINE_CONFIG.map[i];
     const c = colors[i];
-    frame[i * 3 + 0] = c[0];
-    frame[i * 3 + 1] = c[1];
-    frame[i * 3 + 2] = c[2];
+    frame[phys * 3 + 0] = c[0];
+    frame[phys * 3 + 1] = c[1];
+    frame[phys * 3 + 2] = c[2];
   }
   return frame;
 }
@@ -159,3 +169,38 @@ export const stubTick: GraphTick = (nodes, wires, t) => {
   const frames = tickGraph(nodes, wires, t);
   return { frames };
 };
+
+// Build a 256-step HSV gradient LUT between two hex colors (fast, circular hue)
+function hexToRgb(hex: string): RGB {
+  const m = /^#?([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(hex.trim());
+  if (!m) return [0, 0, 0];
+  return [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
+}
+
+function buildHsvLut(startHex: string, endHex: string): Uint8Array {
+  const a = rgbToHsv(hexToRgb(startHex));
+  const b = rgbToHsv(hexToRgb(endHex));
+  // shortest-arc hue interpolation
+  let dh = b[0] - a[0];
+  if (dh > 0.5) dh -= 1; else if (dh < -0.5) dh += 1;
+  const lut = new Uint8Array(256 * 3);
+  for (let i = 0; i < 256; i++) {
+    const t = i / 255;
+    const h = (a[0] + dh * t + 1) % 1;
+    const s = a[1] + (b[1] - a[1]) * t;
+    const v = a[2] + (b[2] - a[2]) * t;
+    const [r, g, bl] = hsvToRgb([h, s, v]);
+    const j = i * 3; lut[j] = r; lut[j + 1] = g; lut[j + 2] = bl;
+  }
+  return lut;
+}
+
+// Optional per-frame cap to enforce device power/brightness budget
+export function applyFrameCapRGB8(frame: Uint8Array, capByte?: number): void {
+  if (!capByte || capByte >= 255) return;
+  let peak = 0;
+  for (let i = 0; i < frame.length; i++) peak = Math.max(peak, frame[i]);
+  if (peak <= capByte || peak === 0) return;
+  const s = capByte / peak;
+  for (let i = 0; i < frame.length; i++) frame[i] = Math.min(255, Math.round(frame[i] * s));
+}
