@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -37,6 +38,19 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --k1-bg: #0a0e14;
+  --k1-surface: #1a1f2b;
+  --k1-border: rgba(255, 255, 255, 0.12);
+  --k1-text: #e8eaed;
+  --k1-text-dim: #9ca3af;
+  --k1-accent: #6ee7f3;
+  --k1-accent-2: #a78bfa;
+  --k1-error: #ef4444;
+
+  --port-field: #6ee7f3;
+  --port-color: #ec4899;
+  --port-scalar: #a78bfa;
+  --port-output: #10b981;
 }
 
 .dark {
@@ -75,8 +89,9 @@
 }
 
 @theme inline {
-  --font-sans: "Geist", "Geist Fallback";
-  --font-mono: "Geist Mono", "Geist Mono Fallback";
+  /* Using Inter and JetBrains Mono from Google Fonts */
+  --font-sans: "Inter", -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -127,18 +142,20 @@
 /* Adding K1 glassmorphism utilities from Figma */
 .glass-panel {
   position: relative;
+  backdrop-filter: blur(40px) saturate(200%) !important;
   -webkit-backdrop-filter: blur(40px) saturate(200%) !important;
-  background: #1a1f2b40 !important;
-  border: 1.5px solid #ffffff2e !important;
-  box-shadow: 0 8px 32px #00000080, inset 0 1px #ffffff26, inset 0 -1px #0000004d !important;
+  background: rgba(26, 31, 43, 0.25) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px rgba(255, 255, 255, 0.15), inset 0 -1px rgba(0, 0, 0, 0.3) !important;
 }
 
 .glass-node {
   position: relative;
+  backdrop-filter: blur(50px) saturate(200%) !important;
   -webkit-backdrop-filter: blur(50px) saturate(200%) !important;
-  background: #1a1f2b59 !important;
-  border: 1.5px solid #fff3 !important;
-  box-shadow: 0 12px 40px #0009, inset 0 1px #fff3, inset 0 -1px #0006 !important;
+  background: rgba(26, 31, 43, 0.35) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), inset 0 1px rgba(255, 255, 255, 0.2), inset 0 -1px rgba(0, 0, 0, 0.4) !important;
 }
 
 .glass-corners:before,
@@ -152,7 +169,13 @@
 .glass-corners:before {
   border-radius: inherit;
   filter: blur(2px);
-  background: radial-gradient(at 0 0, #fffc 0%, #fff6 15%, #ffffff26 35%, #0000 60%);
+  background: radial-gradient(
+    at 0 0,
+    rgba(255, 255, 255, 0.8) 0%,
+    rgba(255, 255, 255, 0.4) 15%,
+    rgba(255, 255, 255, 0.15) 35%,
+    transparent 60%
+  );
   width: 120px;
   height: 120px;
   top: 0;
@@ -162,7 +185,13 @@
 .glass-corners:after {
   border-radius: inherit;
   filter: blur(2px);
-  background: radial-gradient(at 100% 100%, #fff9 0%, #ffffff40 20%, #ffffff1a 40%, #0000 65%);
+  background: radial-gradient(
+    at 100% 100%,
+    rgba(255, 255, 255, 0.6) 0%,
+    rgba(255, 255, 255, 0.25) 20%,
+    rgba(255, 255, 255, 0.1) 40%,
+    transparent 65%
+  );
   width: 100px;
   height: 100px;
   bottom: 0;
@@ -175,7 +204,13 @@
   mix-blend-mode: screen;
   border-radius: inherit;
   z-index: 1;
-  background: linear-gradient(135deg, #6ee7f359 0%, #6ee7f333 25%, #a78bfa26 45%, #0000 70%);
+  background: linear-gradient(
+    135deg,
+    rgba(110, 231, 243, 0.35) 0%,
+    rgba(110, 231, 243, 0.2) 25%,
+    rgba(167, 139, 250, 0.15) 45%,
+    transparent 70%
+  );
   width: 140%;
   height: 140%;
   position: absolute;
@@ -191,7 +226,13 @@
   content: "";
   pointer-events: none;
   z-index: 20;
-  background: linear-gradient(135deg, #0000 0% 48%, #6ee7f380 49%, #6ee7f3cc 50%, #0000 51%);
+  background: linear-gradient(
+    135deg,
+    transparent 0% 48%,
+    rgba(110, 231, 243, 0.5) 49%,
+    rgba(110, 231, 243, 0.8) 50%,
+    transparent 51%
+  );
   width: 28px;
   height: 28px;
   position: absolute;
@@ -217,8 +258,8 @@
 
 .glass-sparkle:before {
   content: "✦";
-  color: #fff9;
-  text-shadow: 0 0 10px #fffc, 0 0 20px #fff6;
+  color: rgba(255, 255, 255, 0.6);
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.8), 0 0 20px rgba(255, 255, 255, 0.4);
   pointer-events: none;
   z-index: 15;
   font-size: 16px;

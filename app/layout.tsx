@@ -1,15 +1,12 @@
-import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
-import './globals.css'
-
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
+import type React from "react"
+import type { Metadata } from "next"
+import "./globals.css"
+import { Toaster } from "sonner"
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.app',
+  title: "Light Lab Node Editor",
+  description: "K1 Node-based pattern editor",
+    generator: 'v0.app'
 }
 
 export default function RootLayout({
@@ -18,10 +15,17 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
-      <body className={`font-sans antialiased`}>
+    <html lang="en" className="dark">
+      <body className="font-sans antialiased">
         {children}
-        <Analytics />
+        <Toaster
+          position="bottom-right"
+          toastOptions={{
+            classNames: {
+              toast: "glass-panel shadow-elevation-2 border-border/50",
+            },
+          }}
+        />
       </body>
     </html>
   )
