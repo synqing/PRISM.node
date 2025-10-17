@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { NodeLibrary } from './NodeLibrary';
 import { NodeCanvas } from './NodeCanvas';
 import { NodeInspector } from './NodeInspector';
 import { K1Toolbar } from './K1Toolbar';
 import type { NodeData, Wire, Port } from './types';
 import { toast } from 'sonner@2.0.3';
+import { stubTick } from './engine';
 
 // Helper to create sample nodes
 function createNode(
@@ -115,6 +116,9 @@ export function LightLab() {
   const [wires, setWires] = useState<Wire[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>('node-1');
   const [playing, setPlaying] = useState(false);
+  const rafRef = useRef<number | null>(null);
+  const startRef = useRef<number | null>(null);
+  const [lastFrame, setLastFrame] = useState<Uint8Array | Float32Array | null>(null);
 
   const handleAddNode = (templateId: string) => {
     const newNode = createNode(
@@ -185,6 +189,54 @@ export function LightLab() {
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId) || null;
 
+  // Simple playback loop using stubTick
+  useEffect(() => {
+    if (!playing) {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+      startRef.current = null;
+      return;
+    }
+
+    const loop = (ts: number) => {
+      if (startRef.current == null) startRef.current = ts;
+      const t = ts - startRef.current;
+      const { frames } = stubTick(nodes, wires, t);
+      setLastFrame(frames);
+      rafRef.current = requestAnimationFrame(loop);
+    };
+    rafRef.current = requestAnimationFrame(loop);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    };
+  }, [playing, nodes, wires]);
+
+  // Export current graph (stub)
+  const handleExport = async () => {
+    const payload = {
+      nodes,
+      wires,
+      params: {},
+      preview: lastFrame ? Array.from(lastFrame as Uint8Array) : undefined,
+      exportedAt: new Date().toISOString(),
+    };
+    const json = JSON.stringify(payload, null, 2);
+    try {
+      await navigator.clipboard.writeText(json);
+      toast.success('Graph JSON copied to clipboard');
+    } catch {
+      toast.info('Download graph.json');
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'graph.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  };
+
   return (
     <div className="h-screen flex bg-[var(--k1-bg)] relative overflow-hidden">
       {/* VIVID Gradient Background - Makes glass visible */}
@@ -207,7 +259,7 @@ export function LightLab() {
           onPlayPause={() => setPlaying(!playing)}
           onReset={() => toast.info('Reset pattern')}
           onSave={() => toast.success('Pattern saved')}
-          onExport={() => toast.success('Exported to K1 device')}
+          onExport={handleExport}
           onImport={() => toast.info('Import pattern')}
           onFullscreen={() => document.documentElement.requestFullscreen()}
           onSettings={() => toast.info('Settings')}
