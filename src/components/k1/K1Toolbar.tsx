@@ -135,6 +135,9 @@ export function K1Toolbar({
         >
           {orthogonal ? 'Ortho' : 'Bezier'}
         </Button>
+        <span className="ml-2 text-xs font-mono text-[var(--k1-text-dim)]" aria-live="polite">
+          edges: {orthogonal ? 'orthogonal' : 'bezier'}
+        </span>
       </div>
 
       {/* Right: Actions */}

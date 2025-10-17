@@ -23,3 +23,9 @@ export interface GraphExport {
   preview?: number[]; // flattened preview frame for quick inspection
   exportedAt: string;
 }
+
+// Centralized preview/export constants
+export const PREVIEW_SPEC = {
+  length: 64, // sample frame length for stub
+  fps: 60,
+};

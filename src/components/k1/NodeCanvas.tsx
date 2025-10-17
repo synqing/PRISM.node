@@ -400,6 +400,7 @@ export function NodeCanvas({
         </div>
         <div className="pt-1 border-t border-[rgba(255,255,255,0.08)] mt-1">
           <div className="text-[var(--k1-accent)]">Click output → input to wire</div>
+          <div className="mt-1">Enter to start/finish • Tab to cycle • Esc cancel</div>
           <div className="mt-1">Click wire to delete • Click canvas to cancel</div>
         </div>
       </div>

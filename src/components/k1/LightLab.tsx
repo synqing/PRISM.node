@@ -5,7 +5,7 @@ import { NodeInspector } from './NodeInspector';
 import { K1Toolbar } from './K1Toolbar';
 import type { NodeData, Wire, Port } from './types';
 import { toast } from 'sonner@2.0.3';
-import { stubTick } from './engine';
+import { stubTick, PREVIEW_SPEC } from './engine';
 
 // Helper to create sample nodes
 function createNode(
@@ -264,7 +264,7 @@ export function LightLab() {
       wires,
       params: {},
       preview: lastFrame ? Array.from(lastFrame as Uint8Array) : undefined,
-      framesMeta: { length: 64, fps: 60 },
+      framesMeta: PREVIEW_SPEC,
       exportedAt: new Date().toISOString(),
     };
     const json = JSON.stringify(payload, null, 2);
