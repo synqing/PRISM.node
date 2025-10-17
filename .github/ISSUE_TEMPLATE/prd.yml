@@ -1,0 +1,27 @@
+name: PRD (Product Requirements)
+description: Define a small feature with clear goals and acceptance criteria
+labels: [prd]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      placeholder: What user problem are we solving?
+    validations:
+      required: true
+  - type: textarea
+    id: goals
+    attributes:
+      label: Goals / Non‑Goals
+      placeholder: Bullet list of goals and non‑goals
+  - type: textarea
+    id: ux
+    attributes:
+      label: UX Scope (Figma)
+      placeholder: Link frames and list screens/components touched
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      placeholder: - [ ] Scenario → Expected result
+
