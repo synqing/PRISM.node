@@ -5,7 +5,8 @@ import { Badge } from '../ui/badge';
 interface K1ToolbarProps {
   playing?: boolean;
   onPlayPause?: () => void;
-  onReset?: () => void;
+  onReset?: () => void; // legacy pattern reset
+  onResetLayout?: () => void; // new layout reset
   onSave?: () => void;
   onExport?: () => void;
   onImport?: () => void;
@@ -13,12 +14,19 @@ interface K1ToolbarProps {
   onSettings?: () => void;
   nodeCount?: number;
   wireCount?: number;
+  onZoomPreset?: (z: number) => void;
+  currentZoom?: number;
+  showGrid?: boolean;
+  onToggleGrid?: () => void;
+  orthogonal?: boolean;
+  onToggleEdges?: () => void;
 }
 
 export function K1Toolbar({
   playing = false,
   onPlayPause,
   onReset,
+  onResetLayout,
   onSave,
   onExport,
   onImport,
@@ -26,6 +34,12 @@ export function K1Toolbar({
   onSettings,
   nodeCount = 0,
   wireCount = 0,
+  onZoomPreset,
+  currentZoom,
+  showGrid = true,
+  onToggleGrid,
+  orthogonal = false,
+  onToggleEdges,
 }: K1ToolbarProps) {
   return (
     <div className="h-14 glass-panel glass-corners frosted-texture border-b flex items-center justify-between px-4 relative z-20">
@@ -54,14 +68,14 @@ export function K1Toolbar({
         </div>
       </div>
 
-      {/* Center: Playback Controls */}
+      {/* Center: Playback + View Controls */}
       <div className="flex items-center gap-2">
         <Button
           variant="ghost"
           size="sm"
-          onClick={onReset}
+          onClick={onResetLayout ?? onReset}
           className="h-9 px-3"
-          title="Reset (R)"
+          title="Reset layout"
         >
           <RotateCcw className="w-4 h-4" />
         </Button>
@@ -84,6 +98,42 @@ export function K1Toolbar({
               Play
             </>
           )}
+        </Button>
+
+        <div className="w-px h-6 bg-[rgba(255,255,255,0.1)] mx-1" />
+
+        {/* Zoom presets */}
+        {[0.5, 0.75, 1, 1.5].map((z) => (
+          <Button
+            key={z}
+            variant={currentZoom === z ? 'default' : 'outline'}
+            size="sm"
+            className="h-9 px-2 font-mono"
+            onClick={() => onZoomPreset?.(z)}
+            title={`Zoom ${Math.round(z*100)}%`}
+          >
+            {Math.round(z * 100)}%
+          </Button>
+        ))}
+
+        <Button
+          variant={showGrid ? 'default' : 'outline'}
+          size="sm"
+          className="h-9 px-3"
+          onClick={onToggleGrid}
+          title="Toggle grid"
+        >
+          Grid
+        </Button>
+
+        <Button
+          variant={orthogonal ? 'default' : 'outline'}
+          size="sm"
+          className="h-9 px-3"
+          onClick={onToggleEdges}
+          title="Toggle orthogonal edges"
+        >
+          {orthogonal ? 'Ortho' : 'Bezier'}
         </Button>
       </div>
 

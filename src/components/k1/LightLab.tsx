@@ -116,6 +116,50 @@ export function LightLab() {
   const [wires, setWires] = useState<Wire[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>('node-1');
   const [playing, setPlaying] = useState(false);
+  // Layout prefs (persisted)
+  const [leftWidth, setLeftWidth] = useState<number>(() => Number(localStorage.getItem('k1.leftWidth')) || 280);
+  const [rightWidth, setRightWidth] = useState<number>(() => Number(localStorage.getItem('k1.rightWidth')) || 320);
+  const [libraryMini, setLibraryMini] = useState<boolean>(() => localStorage.getItem('k1.libraryMini') === 'true');
+  const [gridOn, setGridOn] = useState<boolean>(() => (localStorage.getItem('k1.grid') ?? 'true') === 'true');
+  const [mode, setMode] = useState<'edit' | 'perform'>(() => (localStorage.getItem('k1.mode') as any) || 'edit');
+  const [density, setDensity] = useState<'compact' | 'cozy'>(() => (localStorage.getItem('k1.density') as any) || 'compact');
+  const [zoomPreset, setZoomPreset] = useState<number>(() => Number(localStorage.getItem('k1.zoomPreset')) || 1);
+
+  // apply widths to CSS variables
+  useEffect(() => {
+    const lib = libraryMini ? 72 : leftWidth;
+    document.documentElement.style.setProperty('--lib-w', `${lib}px`);
+  }, [leftWidth, libraryMini]);
+  useEffect(() => {
+    document.documentElement.style.setProperty('--insp-w', `${rightWidth}px`);
+  }, [rightWidth]);
+
+  // persist prefs
+  useEffect(() => { localStorage.setItem('k1.leftWidth', String(leftWidth)); }, [leftWidth]);
+  useEffect(() => { localStorage.setItem('k1.rightWidth', String(rightWidth)); }, [rightWidth]);
+  useEffect(() => { localStorage.setItem('k1.libraryMini', String(libraryMini)); }, [libraryMini]);
+  useEffect(() => { localStorage.setItem('k1.grid', String(gridOn)); }, [gridOn]);
+  useEffect(() => { localStorage.setItem('k1.mode', mode); }, [mode]);
+  useEffect(() => { localStorage.setItem('k1.density', density); }, [density]);
+  useEffect(() => { localStorage.setItem('k1.zoomPreset', String(zoomPreset)); }, [zoomPreset]);
+
+  const handleResetLayout = () => {
+    setLeftWidth(280);
+    setRightWidth(320);
+    setLibraryMini(false);
+    setGridOn(true);
+    setMode('edit');
+    setDensity('compact');
+    setZoomPreset(1);
+    localStorage.setItem('k1.leftWidth', '280');
+    localStorage.setItem('k1.rightWidth', '320');
+    localStorage.setItem('k1.libraryMini', 'false');
+    localStorage.setItem('k1.grid', 'true');
+    localStorage.setItem('k1.mode', 'edit');
+    localStorage.setItem('k1.density', 'compact');
+    localStorage.setItem('k1.zoomPreset', '1');
+    toast.success('Layout reset to defaults');
+  };
   const rafRef = useRef<number | null>(null);
   const startRef = useRef<number | null>(null);
   const [lastFrame, setLastFrame] = useState<Uint8Array | Float32Array | null>(null);
@@ -251,7 +295,7 @@ export function LightLab() {
         <K1Toolbar
           playing={playing}
           onPlayPause={() => setPlaying(!playing)}
-          onReset={() => toast.info('Reset pattern')}
+          onResetLayout={handleResetLayout}
           onSave={() => toast.success('Pattern saved')}
           onExport={handleExport}
           onImport={() => toast.info('Import pattern')}
@@ -259,6 +303,10 @@ export function LightLab() {
           onSettings={() => toast.info('Settings')}
           nodeCount={nodes.length}
           wireCount={wires.length}
+          showGrid={gridOn}
+          onToggleGrid={() => setGridOn((v) => !v)}
+          onZoomPreset={(z) => setZoomPreset(z)}
+          currentZoom={zoomPreset}
         />
       </div>
 
@@ -278,6 +326,7 @@ export function LightLab() {
           onNodeDelete={handleNodeDelete}
           onWireCreate={handleWireCreate}
           onWireDelete={handleWireDelete}
+          showGrid={gridOn}
         />
       </div>
 

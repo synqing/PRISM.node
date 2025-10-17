@@ -12,6 +12,7 @@ interface NodeCanvasProps {
   onNodeDelete?: (nodeId: string) => void;
   onWireCreate?: (wire: Omit<Wire, 'id'>) => void;
   onWireDelete?: (wireId: string) => void;
+  showGrid?: boolean;
 }
 
 export function NodeCanvas({
@@ -23,6 +24,7 @@ export function NodeCanvas({
   onNodeDelete,
   onWireCreate,
   onWireDelete,
+  showGrid = true,
 }: NodeCanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -224,7 +226,7 @@ export function NodeCanvas({
   return (
     <div
       ref={canvasRef}
-      className="relative w-full h-full overflow-hidden canvas-grid bg-[var(--k1-bg)]"
+      className={`relative w-full h-full overflow-hidden ${showGrid ? 'canvas-grid' : ''} bg-[var(--k1-bg)]`}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
