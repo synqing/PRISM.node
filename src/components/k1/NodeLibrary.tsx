@@ -1,7 +1,7 @@
 import { Search, Zap, Grid3x3, Wand2, Palette, GitMerge, MonitorPlay } from 'lucide-react';
 import { Input } from '../ui/input';
-import { ScrollArea } from '../ui/scroll-area';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useAutoColumns } from './hooks/useAutoColumns';
 import type { NodeCategory } from './types';
 
 interface NodeTemplate {
@@ -139,64 +139,55 @@ export function NodeLibrary({ onAddNode, mini = false, onToggleMini }: NodeLibra
         </div>
       )}
 
-      {/* Node List (icon-only when mini) */}
-      <ScrollArea className="flex-1">
-        <div className={mini ? 'p-2 grid grid-cols-1 gap-2' : 'p-3 space-y-4'}>
-          {mini ? (
-            // Mini: show a compact, icon-only list for quick add
-            NODE_TEMPLATES.map((node) => (
-              <button
-                key={node.id}
-                onClick={() => onAddNode?.(node.id)}
-                className="w-full h-10 rounded border border-[rgba(255,255,255,0.12)] bg-[var(--k1-bg)] hover:border-[var(--k1-accent)]/50 flex items-center justify-center focus-visible-outline"
-                title={node.title}
-                aria-label={`Add ${node.title}`}
-              >
-                <span className="text-base" aria-hidden>
-                  {node.icon}
-                </span>
-              </button>
-            ))
-          ) : (
-            Object.entries(groupedNodes).map(([category, nodes]) => (
-              <div key={category}>
-                <div className="flex items-center gap-2 mb-2 px-1">
-                  <span className={`${CATEGORY_INFO[category as NodeCategory].color}`}>
-                    {CATEGORY_INFO[category as NodeCategory].icon}
-                  </span>
-                  <h3 className="text-xs uppercase tracking-wide text-[var(--k1-text-dim)]">
-                    {CATEGORY_INFO[category as NodeCategory].label}
-                  </h3>
-                </div>
-                <div className="space-y-1">
-                  {nodes.map((node) => (
-                    <button
-                      key={node.id}
-                      onClick={() => onAddNode?.(node.id)}
-                      className="w-full p-2 row-32 rounded border border-[rgba(255,255,255,0.08)] hover:border-[var(--k1-accent)]/50 transition-all text-left group relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent hover:from-white/10 backdrop-blur-sm hover-lift focus-visible-outline"
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-lg">{node.icon}</span>
-                        <span className="text-sm group-hover:text-[var(--k1-accent)] transition-colors">
-                          {node.title}
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-[var(--k1-text-dim)] ml-7">{node.description}</p>
+      {/* Node List: no scroll, auto columns; fallback grid if too tall or mini */}
+      <div className="flex-1 k1-lib">
+        {(() => {
+          const groups = Object.entries(groupedNodes).map(([category, nodes]) => ({
+            key: category,
+            title: CATEGORY_INFO[category as NodeCategory].label,
+            items: nodes.map((n) => ({ id: n.id, label: n.title, icon: <span className="text-lg">{n.icon}</span>, onAdd: () => onAddNode?.(n.id) })),
+          }));
+          const totalRows = groups.reduce((acc, g) => acc + 1 + g.items.length, 0);
+          const { ref, cols, tooTallEvenAtMax } = useAutoColumns<HTMLDivElement>({ totalRows, rowPx: 32, minCols: 1, maxCols: 4 });
+
+          if (mini || tooTallEvenAtMax) {
+            return (
+              <div className="k1-libGrid" ref={ref}>
+                {groups.flatMap((g) => g.items).map((it) => (
+                  <button key={it.id} onClick={it.onAdd} className="k1-libGridItem focus-visible-outline" aria-label={it.label} title={it.label}>
+                    <div>{it.icon}</div>
+                    <div className="text-xs mt-1 opacity-80">{it.label}</div>
+                  </button>
+                ))}
+              </div>
+            );
+          }
+
+          if (!mini && filteredNodes.length === 0) {
+            return (
+              <div className="text-center py-8 text-[var(--k1-text-dim)]">
+                <p className="text-sm">No nodes found</p>
+                <p className="text-xs mt-1">Try a different search or category</p>
+              </div>
+            );
+          }
+
+          return (
+            <div className="k1-libColumns" ref={ref} style={{ columnCount: cols }} aria-label={`Node library, ${cols} columns`}>
+              {groups.map((g) => (
+                <section key={g.key} className="k1-libSection">
+                  <h3 className="text-xs uppercase tracking-wide opacity-70 k1-libItem">{g.title}</h3>
+                  {g.items.map((it) => (
+                    <button key={it.id} onClick={it.onAdd} className="k1-libItem w-full text-left rounded-md hover:opacity-90 focus-visible-outline" aria-label={it.label} title={it.label}>
+                      <span className="inline-flex items-center gap-2">{it.icon}<span>{it.label}</span></span>
                     </button>
                   ))}
-                </div>
-              </div>
-            ))
-          )}
-
-          {!mini && filteredNodes.length === 0 && (
-            <div className="text-center py-8 text-[var(--k1-text-dim)]">
-              <p className="text-sm">No nodes found</p>
-              <p className="text-xs mt-1">Try a different search or category</p>
+                </section>
+              ))}
             </div>
-          )}
-        </div>
-      </ScrollArea>
+          );
+        })()}
+      </div>
     </div>
   );
 }
