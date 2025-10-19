@@ -1,0 +1,29 @@
+name: Feature Request
+description: Propose an enhancement or new capability
+labels: [enhancement]
+body:
+  - type: input
+    id: title
+    attributes:
+      label: Short title
+      placeholder: Device Manager bulk actions
+    validations:
+      required: true
+  - type: textarea
+    id: value
+    attributes:
+      label: Problem / value
+      placeholder: As a user, I want...
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Proposed scope
+      placeholder: Screens affected, components to touch
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: Checkboxes for what must be true to ship
+

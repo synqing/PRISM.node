@@ -1,0 +1,436 @@
+import { useRef, useState, useEffect } from 'react';
+import { toast } from 'sonner@2.0.3';
+import { Node } from './Node';
+import { type NodeData, type Wire, PORT_COLORS } from './types';
+import { HEADER, PAD, PORT_H, GAP, PORT_CENTER_OFFSET, getNodeWidth } from './geometry';
+
+interface NodeCanvasProps {
+  nodes: NodeData[];
+  wires: Wire[];
+  selectedNodeId?: string;
+  onNodeSelect?: (nodeId: string) => void;
+  onNodeMove?: (nodeId: string, position: { x: number; y: number }) => void;
+  onNodeDelete?: (nodeId: string) => void;
+  onWireCreate?: (wire: Omit<Wire, 'id'>) => void;
+  onWireDelete?: (wireId: string) => void;
+  showGrid?: boolean;
+  orthogonal?: boolean;
+  zoomPreset?: number;
+}
+
+export function NodeCanvas({
+  nodes,
+  wires,
+  selectedNodeId,
+  onNodeSelect,
+  onNodeMove,
+  onNodeDelete,
+  onWireCreate,
+  onWireDelete,
+  showGrid = true,
+  orthogonal = false,
+  zoomPreset,
+}: NodeCanvasProps) {
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+  const [draggedNode, setDraggedNode] = useState<string | null>(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [connectingPort, setConnectingPort] = useState<{
+    nodeId: string;
+    portId: string;
+    isOutput: boolean;
+    type: string;
+  } | null>(null);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [kbdStart, setKbdStart] = useState<{ nodeId: string; portId: string; isOutput: boolean } | null>(null);
+
+  // Keep zoom in sync with toolbar presets while allowing wheel-based adjustments
+  useEffect(() => {
+    if (typeof zoomPreset === 'number' && Number.isFinite(zoomPreset)) {
+      setZoom(zoomPreset);
+    }
+  }, [zoomPreset]);
+
+  // Pan with space + drag
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !isPanning) {
+        e.preventDefault();
+        setIsPanning(true);
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        setIsPanning(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [isPanning]);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (isPanning || e.button === 1) {
+      e.preventDefault();
+      setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (rect) {
+      setMousePos({
+        x: (e.clientX - rect.left - pan.x) / zoom,
+        y: (e.clientY - rect.top - pan.y) / zoom,
+      });
+    }
+
+    if (isPanning || e.buttons === 4) {
+      setPan({
+        x: e.clientX - panStart.x,
+        y: e.clientY - panStart.y,
+      });
+    }
+
+    if (draggedNode && !connectingPort) {
+      const node = nodes.find((n) => n.id === draggedNode);
+      if (node && rect) {
+        const newX = (e.clientX - rect.left - pan.x) / zoom - dragOffset.x;
+        const newY = (e.clientY - rect.top - pan.y) / zoom - dragOffset.y;
+        onNodeMove?.(draggedNode, { x: newX, y: newY });
+      }
+    }
+  };
+
+  const handleMouseUp = () => {
+    setDraggedNode(null);
+  };
+
+  // Keyboard wiring: Enter to start/finish, Esc to cancel, Tab to cycle targets
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setKbdStart(null);
+        setConnectingPort(null);
+        return;
+      }
+      if (e.key === 'Tab' && kbdStart) {
+        e.preventDefault();
+        const targetIsOutput = !kbdStart.isOutput;
+        const sNode = nodes.find(n => n.id === kbdStart.nodeId);
+        const sPort = sNode ? (kbdStart.isOutput ? sNode.outputs.find(p => p.id === kbdStart.portId) : sNode.inputs.find(p => p.id === kbdStart.portId)) : null;
+        const typeSel = sPort ? `[data-port-type="${sPort.type}"]` : '';
+        const selector = `[data-port-id][data-is-output="${targetIsOutput}"]${typeSel}`;
+        const list = Array.from((canvasRef.current || document).querySelectorAll<HTMLElement>(selector));
+        if (list.length === 0) return;
+        const active = document.activeElement as HTMLElement | null;
+        const idx = Math.max(0, list.findIndex((el) => el === active));
+        const nextIdx = (idx + (e.shiftKey ? list.length - 1 : 1)) % list.length;
+        list[nextIdx].focus();
+        return;
+      }
+      if (e.key !== 'Enter') return;
+      const el = document.activeElement as HTMLElement | null;
+      if (!el) return;
+      const nodeId = el.getAttribute('data-node-id');
+      const portId = el.getAttribute('data-port-id');
+      const isOutAttr = el.getAttribute('data-is-output');
+      if (!nodeId || !portId || !isOutAttr) return;
+      const isOutput = isOutAttr === 'true';
+      e.preventDefault();
+      if (kbdStart) {
+        if (kbdStart.isOutput !== isOutput) {
+          const from = kbdStart.isOutput ? { nodeId: kbdStart.nodeId, portId: kbdStart.portId } : { nodeId, portId };
+          const to = kbdStart.isOutput ? { nodeId, portId } : { nodeId: kbdStart.nodeId, portId: kbdStart.portId };
+          const sNode2 = nodes.find(n => n.id === kbdStart.nodeId);
+          const sPort2 = sNode2 ? (kbdStart.isOutput ? sNode2.outputs.find(p => p.id === kbdStart.portId) : sNode2.inputs.find(p => p.id === kbdStart.portId)) : null;
+          const eNode2 = nodes.find(n => n.id === nodeId);
+          const ePort2 = eNode2 ? (isOutput ? eNode2.outputs.find(p => p.id === portId) : eNode2.inputs.find(p => p.id === portId)) : null;
+          if (sPort2 && ePort2 && sPort2.type === ePort2.type) {
+            onWireCreate?.({ from, to, type: (sPort2.type as any) });
+          } else {
+            toast.error('Incompatible ports');
+          }
+        }
+        setKbdStart(null);
+      } else {
+        setKbdStart({ nodeId, portId, isOutput });
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [kbdStart, nodes, onWireCreate]);
+
+  const handleWheel = (e: React.WheelEvent) => {
+    if (e.metaKey || e.ctrlKey) {
+      e.preventDefault();
+      const delta = -e.deltaY * 0.001;
+      setZoom((prev) => Math.max(0.25, Math.min(2, prev + delta)));
+    }
+  };
+
+  const handleNodeMouseDown = (nodeId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!isPanning && !connectingPort) {
+      const node = nodes.find((n) => n.id === nodeId);
+      if (node) {
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if (rect) {
+          const clickX = (e.clientX - rect.left - pan.x) / zoom;
+          const clickY = (e.clientY - rect.top - pan.y) / zoom;
+          setDragOffset({
+            x: clickX - node.position.x,
+            y: clickY - node.position.y,
+          });
+        }
+      }
+      setDraggedNode(nodeId);
+      onNodeSelect?.(nodeId);
+    }
+  };
+
+  const handlePortMouseDown = (nodeId: string, portId: string, isOutput: boolean, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node) return;
+
+    const portList = isOutput ? node.outputs : node.inputs;
+    const port = portList.find((p) => p.id === portId);
+    if (!port) return;
+
+    if (connectingPort) {
+      // Complete connection - only allow output -> input
+      if (connectingPort.isOutput !== isOutput) {
+        const from = connectingPort.isOutput
+          ? { nodeId: connectingPort.nodeId, portId: connectingPort.portId }
+          : { nodeId, portId };
+        const to = connectingPort.isOutput
+          ? { nodeId, portId }
+          : { nodeId: connectingPort.nodeId, portId: connectingPort.portId };
+
+        const wireType = connectingPort.isOutput ? connectingPort.type : port.type;
+
+        onWireCreate?.({
+          from,
+          to,
+          type: wireType as any,
+        });
+      }
+      setConnectingPort(null);
+    } else {
+      // Start connection
+      setConnectingPort({
+        nodeId,
+        portId,
+        isOutput,
+        type: port.type,
+      });
+    }
+  };
+
+  // Get port center position using actual DOM measurement
+  const getPortPosition = (nodeId: string, portId: string, isOutput: boolean): { x: number; y: number } => {
+    const portElement = document.querySelector(
+      `[data-node-id="${nodeId}"][data-port-id="${portId}"][data-is-output="${isOutput}"]`
+    ) as HTMLElement;
+
+    if (portElement) {
+      const rect = portElement.getBoundingClientRect();
+      const canvasRect = canvasRef.current?.getBoundingClientRect();
+      
+      if (canvasRect) {
+        // Get center of port in canvas coordinates
+        const centerX = (rect.left + rect.width / 2 - canvasRect.left - pan.x) / zoom;
+        const centerY = (rect.top + rect.height / 2 - canvasRect.top - pan.y) / zoom;
+        return { x: centerX, y: centerY };
+      }
+    }
+
+    // Fallback to calculation if DOM element not found
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node) return { x: 0, y: 0 };
+
+    const nodeWidth = getNodeWidth(node.compact);
+    const portList = isOutput ? node.outputs : node.inputs;
+    const portIndex = portList.findIndex((p) => p.id === portId);
+    
+    // Port centers are at the node edge after accounting for margin
+    const x = isOutput ? node.position.x + nodeWidth : node.position.x;
+
+    // Y calculation using shared geometry constants
+    // node.position.y + HEADER + PAD + PORT_CENTER_OFFSET + portIndex * (PORT_H + GAP)
+    const y = node.position.y + HEADER + PAD + PORT_CENTER_OFFSET + portIndex * (PORT_H + GAP);
+
+    return { x, y };
+  };
+
+  // Generate wire path (bezier or orthogonal)
+  const getWirePath = (from: { x: number; y: number }, to: { x: number; y: number }) => {
+    if (!orthogonal) {
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const controlOffset = Math.min(distance * 0.3, 80);
+      return `M ${from.x} ${from.y} C ${from.x + controlOffset} ${from.y}, ${to.x - controlOffset} ${to.y}, ${to.x} ${to.y}`;
+    }
+    const midX = (from.x + to.x) / 2;
+    return `M ${from.x} ${from.y} L ${midX} ${from.y} L ${midX} ${to.y} L ${to.x} ${to.y}`;
+  };
+
+  const handleCanvasClick = (e: React.MouseEvent) => {
+    if (connectingPort && e.target === e.currentTarget) {
+      setConnectingPort(null);
+    }
+  };
+
+  return (
+    <div
+      ref={canvasRef}
+      className={`relative w-full h-full overflow-hidden ${showGrid ? 'canvas-grid' : ''} bg-[var(--k1-bg)]`}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onWheel={handleWheel}
+      onClick={handleCanvasClick}
+      style={{ cursor: isPanning ? 'grab' : 'default' }}
+    >
+      {/* Transform container */}
+      <div
+        style={{
+          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+          transformOrigin: '0 0',
+          position: 'absolute',
+          inset: 0,
+        }}
+      >
+        {/* SVG for wires */}
+        <svg
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            width: '100%',
+            height: '100%',
+            overflow: 'visible',
+          }}
+        >
+          <defs>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="2" result="coloredBlur" />
+              <feMerge>
+                <feMergeNode in="coloredBlur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            <marker id="k1-arrow" viewBox="0 0 6 6" refX="6" refY="3" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0 0 L6 3 L0 6 Z" fill="currentColor" />
+            </marker>
+          </defs>
+
+          {/* Existing wires */}
+          {wires.map((wire) => {
+            const from = getPortPosition(wire.from.nodeId, wire.from.portId, true);
+            const to = getPortPosition(wire.to.nodeId, wire.to.portId, false);
+            const path = getWirePath(from, to);
+
+            return (
+              <g key={wire.id}>
+                <path
+                  d={path}
+                  stroke="transparent"
+                  strokeWidth="12"
+                  fill="none"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onWireDelete?.(wire.id);
+                  }}
+                  style={{ cursor: 'pointer', pointerEvents: 'stroke' }}
+                />
+                <path
+                  d={path}
+                  stroke={PORT_COLORS[wire.type]}
+                  strokeWidth="2.5"
+                  fill="none"
+                  filter="url(#glow)"
+                  style={{ pointerEvents: 'none' }}
+                  markerEnd="url(#k1-arrow)"
+                />
+              </g>
+            );
+          })}
+
+          {/* Active connection preview */}
+          {connectingPort && (
+            <path
+              d={getWirePath(
+                getPortPosition(connectingPort.nodeId, connectingPort.portId, connectingPort.isOutput),
+                mousePos
+              )}
+              stroke="var(--k1-accent)"
+              strokeWidth="3"
+              strokeDasharray="8 4"
+              fill="none"
+              opacity="0.8"
+              filter="url(#glow)"
+            />
+          )}
+        </svg>
+
+        {/* Nodes */}
+        {nodes.map((node) => (
+          <div
+            key={node.id}
+            onMouseDown={(e) => handleNodeMouseDown(node.id, e)}
+            style={{ position: 'absolute' }}
+          >
+            <Node
+              data={node}
+              selected={node.id === selectedNodeId}
+              onSelect={() => onNodeSelect?.(node.id)}
+              onDelete={() => onNodeDelete?.(node.id)}
+              onPortMouseDown={(portId, isOutput, e) =>
+                handlePortMouseDown(node.id, portId, isOutput, e)
+              }
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Zoom indicator */}
+      <div className="absolute bottom-4 right-4 px-3 py-1.5 glass-panel glass-corners frosted-texture rounded-lg text-xs font-mono pointer-events-none">
+        {Math.round(zoom * 100)}%
+      </div>
+
+      {/* Instructions */}
+      <div className="absolute bottom-4 left-4 px-3 py-2 glass-panel glass-corners glass-sparkle frosted-texture rounded-lg text-[10px] text-[var(--k1-text-dim)] space-y-0.5 pointer-events-none">
+        <div>
+          <kbd className="px-1 py-0.5 bg-[var(--k1-bg)] rounded text-[9px]">Space</kbd> + drag to pan
+        </div>
+        <div>
+          <kbd className="px-1 py-0.5 bg-[var(--k1-bg)] rounded text-[9px]">⌘</kbd> + scroll to zoom
+        </div>
+        <div className="pt-1 border-t border-[rgba(255,255,255,0.08)] mt-1">
+          <div className="text-[var(--k1-accent)]">Click output → input to wire</div>
+          <div className="mt-1">Enter to start/finish • Tab to cycle • Esc cancel</div>
+          <div className="mt-1">Click wire to delete • Click canvas to cancel</div>
+        </div>
+      </div>
+
+      {/* Connection Status */}
+      {connectingPort && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-[var(--k1-accent)] text-black rounded-lg shadow-k1-lg font-semibold pointer-events-none" style={{ boxShadow: '0 0 30px rgba(110, 231, 243, 0.8), 0 12px 40px rgba(0, 0, 0, 0.6)' }}>
+          ⚡ Click {connectingPort.isOutput ? 'INPUT' : 'OUTPUT'} port to complete
+        </div>
+      )}
+    </div>
+  );
+}

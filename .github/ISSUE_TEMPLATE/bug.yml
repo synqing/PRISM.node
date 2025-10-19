@@ -1,0 +1,33 @@
+name: Bug Report
+description: Report a reproducible problem
+labels: [bug]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the bug and expected behavior.
+      placeholder: Clicking X while Y causes Z...
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction steps
+      placeholder: 1) Go to... 2) Click... 3) See error
+  - type: input
+    id: branch
+    attributes:
+      label: Branch
+      placeholder: v0-friendly
+  - type: input
+    id: build
+    attributes:
+      label: Build info
+      placeholder: Node 20, npm vX, commit SHA
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      placeholder: Paste errors or attach images
+
