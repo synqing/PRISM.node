@@ -14,6 +14,8 @@ interface K1ToolbarProps {
   onExport?: () => void;
   onExportCopy?: () => void;
   onExportDownload?: () => void;
+  onSend?: () => void;
+  onDryRun?: () => void;
   onImport?: () => void;
   onFullscreen?: () => void;
   onSettings?: () => void;
@@ -31,6 +33,10 @@ interface K1ToolbarProps {
   onCapPercentChange?: (value: number) => void;
   fps?: number;
   onFpsChange?: (fps: number) => void;
+  sequenceEnabled?: boolean;
+  onToggleSequence?: () => void;
+  sequenceFrames?: number;
+  onSequenceFramesChange?: (n: number) => void;
 }
 
 export function K1Toolbar({
@@ -45,6 +51,8 @@ export function K1Toolbar({
   onImport,
   onFullscreen,
   onSettings,
+  onSend,
+  onDryRun,
   nodeCount = 0,
   wireCount = 0,
   onZoomPreset,
@@ -59,6 +67,10 @@ export function K1Toolbar({
   onCapPercentChange,
   fps = 120,
   onFpsChange,
+  sequenceEnabled = false,
+  onToggleSequence,
+  sequenceFrames = 1,
+  onSequenceFramesChange,
 }: K1ToolbarProps) {
   const capByte = Math.max(0, Math.min(255, Math.round((capPercent / 100) * 255)));
   const fpsOptions: number[] = [120, 60, 30];
@@ -163,6 +175,29 @@ export function K1Toolbar({
           Grid
         </Button>
 
+        {/* Export sequence controls */}
+        <Button
+          variant={sequenceEnabled ? 'default' : 'outline'}
+          size="sm"
+          className="h-9 px-3"
+          onClick={onToggleSequence}
+          aria-pressed={sequenceEnabled}
+          title="Export multiple frames at the selected FPS"
+        >
+          Seq
+        </Button>
+        <input
+          aria-label="Frames count"
+          title="1–273 frames"
+          type="number"
+          min={1}
+          max={273}
+          disabled={!sequenceEnabled}
+          value={sequenceFrames}
+          onChange={(e) => onSequenceFramesChange?.(Math.max(1, Math.min(273, Number(e.target.value) || 1)))}
+          className="h-9 w-16 bg-[var(--k1-bg)] border border-[var(--k1-border)] rounded px-2 text-xs font-mono"
+        />
+
         <div className="flex items-center gap-1">
           <Button
             variant={capEnabled ? 'default' : 'outline'}
@@ -226,6 +261,24 @@ export function K1Toolbar({
 
       {/* Right: Actions */}
       <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onDryRun}
+          className="h-9 px-3"
+          title="Dry-run TLV send (no network)"
+        >
+          Dry-run
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onSend}
+          className="h-9 px-3"
+          title="Send over WebSocket"
+        >
+          Send
+        </Button>
         <Button
           variant="ghost"
           size="sm"

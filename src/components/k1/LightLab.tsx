@@ -6,6 +6,7 @@ import { K1Toolbar } from './K1Toolbar';
 import type { NodeData, Wire } from './types';
 import { toast } from 'sonner@2.0.3';
 import { stubTick, PREVIEW_SPEC, ENGINE_CONFIG, applyFrameCapRGB8 } from './engine';
+import { makePutPlan, dryRunReport, sendPlanOverWs } from './transport/wsTlv';
 
 // Helper to create sample nodes
 function createNode(
@@ -137,8 +138,25 @@ export function LightLab() {
   });
   const [lastFrameRaw, setLastFrameRaw] = useState<Uint8Array | null>(null);
   const [lastFramePreview, setLastFramePreview] = useState<Uint8Array | null>(null);
+  const [sequenceEnabled, setSequenceEnabled] = useState<boolean>(() => localStorage.getItem('k1.sequenceEnabled') === 'true');
+  const [sequenceFrames, setSequenceFrames] = useState<number>(() => Number(localStorage.getItem('k1.sequenceFrames') || 1));
+  const [wsUrl, setWsUrl] = useState<string>(() => localStorage.getItem('k1.wsUrl') || 'ws://k1.local:80');
 
   const capByte = Math.max(0, Math.min(255, Math.round((capPercent / 100) * 255)));
+
+  // UI polish: transient snap feedback for panel resizing
+  const [leftSnapHint, setLeftSnapHint] = useState<number | null>(null);
+  const [rightSnapHint, setRightSnapHint] = useState<number | null>(null);
+  useEffect(() => {
+    if (leftSnapHint == null) return;
+    const id = setTimeout(() => setLeftSnapHint(null), 900);
+    return () => clearTimeout(id);
+  }, [leftSnapHint]);
+  useEffect(() => {
+    if (rightSnapHint == null) return;
+    const id = setTimeout(() => setRightSnapHint(null), 900);
+    return () => clearTimeout(id);
+  }, [rightSnapHint]);
 
   // apply widths to CSS variables
   useEffect(() => {
@@ -160,6 +178,9 @@ export function LightLab() {
   useEffect(() => { localStorage.setItem('k1.fps', String(fps)); }, [fps]);
   useEffect(() => { localStorage.setItem('k1.capEnabled', String(capEnabled)); }, [capEnabled]);
   useEffect(() => { localStorage.setItem('k1.capPercent', String(capPercent)); }, [capPercent]);
+  useEffect(() => { localStorage.setItem('k1.sequenceEnabled', String(sequenceEnabled)); }, [sequenceEnabled]);
+  useEffect(() => { localStorage.setItem('k1.sequenceFrames', String(sequenceFrames)); }, [sequenceFrames]);
+  useEffect(() => { localStorage.setItem('k1.wsUrl', wsUrl); }, [wsUrl]);
 
   const handleResetLayout = () => {
     setLeftWidth(280);
@@ -317,8 +338,7 @@ export function LightLab() {
     };
 
     const framesMeta = { ...PREVIEW_SPEC, fps };
-
-    return {
+    const payload: any = {
       nodes,
       wires,
       params: {},
@@ -327,6 +347,18 @@ export function LightLab() {
       meta,
       exportedAt: new Date().toISOString(),
     };
+
+    // Optional: clamp frames array to ≤ 273 if present (future-proof)
+    const MAX_FRAMES = 273;
+    if (Array.isArray((payload as any).frames)) {
+      const framesArr = (payload as any).frames as number[][];
+      if (framesArr.length > MAX_FRAMES) {
+        (payload as any).frames = framesArr.slice(0, MAX_FRAMES);
+        (payload as any).meta = { ...payload.meta, note: `Frames clamped to ${MAX_FRAMES} for payload size.` };
+      }
+    }
+
+    return payload;
   };
 
   const handleExportCopy = async () => {
@@ -355,6 +387,43 @@ export function LightLab() {
     toast.success('Download started: graph.json');
   };
 
+  const handleDryRunSend = () => {
+    const name = 'graph.json';
+    const json = JSON.stringify(buildExportPayload());
+    const bytes = new TextEncoder().encode(json);
+    if (bytes.length > 262144) {
+      toast.error(`Payload too large (${bytes.length} bytes > 262,144)`);
+      return;
+    }
+    const plan = makePutPlan(name, bytes);
+    const report = dryRunReport(plan);
+    toast.success(`Dry-run: ${report.frames} frames, CRC ${report.crcHex}, ${report.totalBytes} bytes`);
+    console.log('[WS-TLV dry-run]', report);
+  };
+
+  const handleSendWs = async () => {
+    try {
+      const input = window.prompt('Enter ws:// or wss:// device URL', wsUrl);
+      if (!input) return;
+      const valid = (() => { try { const u = new URL(input); return u.protocol === 'ws:' || u.protocol === 'wss:'; } catch { return false; } })();
+      if (!valid) { toast.error('Invalid URL (must use ws:// or wss://)'); return; }
+      setWsUrl(input);
+      const name = 'graph.json';
+      const json = JSON.stringify(buildExportPayload());
+      const bytes = new TextEncoder().encode(json);
+      if (bytes.length > 262144) {
+        toast.error(`Payload too large (${bytes.length} bytes > 262,144)`);
+        return;
+      }
+      const plan = makePutPlan(name, bytes);
+      await sendPlanOverWs(plan, { url: input });
+      toast.success('Sent TLV payload over WebSocket');
+    } catch (e) {
+      console.error(e);
+      toast.error('Send failed');
+    }
+  };
+
   return (
     <div className="workspace bg-[var(--k1-bg)]">
       {/* Background decoration */}
@@ -374,6 +443,8 @@ export function LightLab() {
           onExport={handleExportDownload}
           onExportCopy={handleExportCopy}
           onExportDownload={handleExportDownload}
+          onDryRun={handleDryRunSend}
+          onSend={handleSendWs}
           onImport={() => toast.info('Import pattern')}
           onFullscreen={() => document.documentElement.requestFullscreen()}
           onSettings={() => toast.info('Settings')}
@@ -397,6 +468,10 @@ export function LightLab() {
           onFpsChange={(value) => {
             if ([120, 60, 30].includes(value)) setFps(value);
           }}
+          sequenceEnabled={sequenceEnabled}
+          onToggleSequence={() => setSequenceEnabled(v => !v)}
+          sequenceFrames={sequenceFrames}
+          onSequenceFramesChange={(n) => setSequenceFrames(n)}
         />
       </div>
 
@@ -415,6 +490,8 @@ export function LightLab() {
             role="separator"
             aria-orientation="vertical"
             tabIndex={0}
+            title="Resize library"
+            aria-label="Resize library"
             onMouseDown={(e) => {
               e.preventDefault();
               const startX = e.clientX;
@@ -427,6 +504,7 @@ export function LightLab() {
                 const clamped = Math.max(240, Math.min(360, raw));
                 const snapped = snaps.reduce((a, b) => (Math.abs(b - clamped) < Math.abs(a - clamped) ? b : a), snaps[0]);
                 setLeftWidth(snapped);
+                setLeftSnapHint(snapped);
               };
               const onUp = () => {
                 window.removeEventListener('mousemove', onMove);
@@ -436,6 +514,11 @@ export function LightLab() {
               window.addEventListener('mouseup', onUp);
             }}
           />
+        )}
+        {leftSnapHint != null && (
+          <div className="absolute top-2 right-2 px-2 py-1 glass-panel rounded text-[10px] font-mono">
+            {leftSnapHint}px
+          </div>
         )}
       </div>
       
@@ -470,6 +553,8 @@ export function LightLab() {
           role="separator"
           aria-orientation="vertical"
           tabIndex={0}
+          title="Resize inspector"
+          aria-label="Resize inspector"
           onMouseDown={(e) => {
             e.preventDefault();
             const startX = e.clientX;
@@ -482,6 +567,7 @@ export function LightLab() {
               const clamped = Math.max(280, Math.min(420, raw));
               const snapped = snaps.reduce((a, b) => (Math.abs(b - clamped) < Math.abs(a - clamped) ? b : a), snaps[0]);
               setRightWidth(snapped);
+              setRightSnapHint(snapped);
             };
             const onUp = () => {
               window.removeEventListener('mousemove', onMove);
@@ -491,6 +577,11 @@ export function LightLab() {
             window.addEventListener('mouseup', onUp);
           }}
         />
+        {rightSnapHint != null && (
+          <div className="absolute top-2 left-2 px-2 py-1 glass-panel rounded text-[10px] font-mono">
+            {rightSnapHint}px
+          </div>
+        )}
       </div>
     </div>
   );
