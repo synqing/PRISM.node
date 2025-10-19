@@ -20,8 +20,8 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install deps (CI)
-        run: npm ci
+      - name: Install deps
+        run: npm install --no-audit --no-fund
 
       - name: Typecheck
         run: npm run typecheck --if-present
@@ -31,4 +31,3 @@ jobs:
 
       - name: Build (Vite)
         run: npm run build
-
