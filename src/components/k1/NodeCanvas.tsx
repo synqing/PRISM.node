@@ -14,6 +14,8 @@ interface NodeCanvasProps {
   onWireCreate?: (wire: Omit<Wire, 'id'>) => void;
   onWireDelete?: (wireId: string) => void;
   showGrid?: boolean;
+  orthogonal?: boolean;
+  zoomPreset?: number;
 }
 
 export function NodeCanvas({
@@ -26,6 +28,8 @@ export function NodeCanvas({
   onWireCreate,
   onWireDelete,
   showGrid = true,
+  orthogonal = false,
+  zoomPreset,
 }: NodeCanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -41,8 +45,14 @@ export function NodeCanvas({
     type: string;
   } | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const [orthogonal] = useState<boolean>(() => (localStorage.getItem('k1.edges') ?? 'bezier') === 'orthogonal');
   const [kbdStart, setKbdStart] = useState<{ nodeId: string; portId: string; isOutput: boolean } | null>(null);
+
+  // Keep zoom in sync with toolbar presets while allowing wheel-based adjustments
+  useEffect(() => {
+    if (typeof zoomPreset === 'number' && Number.isFinite(zoomPreset)) {
+      setZoom(zoomPreset);
+    }
+  }, [zoomPreset]);
 
   // Pan with space + drag
   useEffect(() => {

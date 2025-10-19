@@ -3,9 +3,9 @@ import { NodeLibrary } from './NodeLibrary';
 import { NodeCanvas } from './NodeCanvas';
 import { NodeInspector } from './NodeInspector';
 import { K1Toolbar } from './K1Toolbar';
-import type { NodeData, Wire, Port } from './types';
+import type { NodeData, Wire } from './types';
 import { toast } from 'sonner@2.0.3';
-import { stubTick, PREVIEW_SPEC, ENGINE_CONFIG } from './engine';
+import { stubTick, PREVIEW_SPEC, ENGINE_CONFIG, applyFrameCapRGB8 } from './engine';
 
 // Helper to create sample nodes
 function createNode(
@@ -126,6 +126,19 @@ export function LightLab() {
   const [density, setDensity] = useState<'compact' | 'cozy'>(() => (localStorage.getItem('k1.density') as any) || 'compact');
   const [zoomPreset, setZoomPreset] = useState<number>(() => Number(localStorage.getItem('k1.zoomPreset')) || 1);
   const [edgeMode, setEdgeMode] = useState<'bezier' | 'orthogonal'>(() => (localStorage.getItem('k1.edges') as any) || 'bezier');
+  const [fps, setFps] = useState<number>(() => {
+    const stored = Number(localStorage.getItem('k1.fps'));
+    return [120, 60, 30].includes(stored) ? stored : PREVIEW_SPEC.fps;
+  });
+  const [capEnabled, setCapEnabled] = useState<boolean>(() => (localStorage.getItem('k1.capEnabled') ?? 'false') === 'true');
+  const [capPercent, setCapPercent] = useState<number>(() => {
+    const stored = Number(localStorage.getItem('k1.capPercent'));
+    return Number.isFinite(stored) && stored >= 10 ? Math.min(100, Math.max(10, stored)) : 100;
+  });
+  const [lastFrameRaw, setLastFrameRaw] = useState<Uint8Array | null>(null);
+  const [lastFramePreview, setLastFramePreview] = useState<Uint8Array | null>(null);
+
+  const capByte = Math.max(0, Math.min(255, Math.round((capPercent / 100) * 255)));
 
   // apply widths to CSS variables
   useEffect(() => {
@@ -144,6 +157,9 @@ export function LightLab() {
   useEffect(() => { localStorage.setItem('k1.mode', mode); }, [mode]);
   useEffect(() => { localStorage.setItem('k1.density', density); }, [density]);
   useEffect(() => { localStorage.setItem('k1.zoomPreset', String(zoomPreset)); }, [zoomPreset]);
+  useEffect(() => { localStorage.setItem('k1.fps', String(fps)); }, [fps]);
+  useEffect(() => { localStorage.setItem('k1.capEnabled', String(capEnabled)); }, [capEnabled]);
+  useEffect(() => { localStorage.setItem('k1.capPercent', String(capPercent)); }, [capPercent]);
 
   const handleResetLayout = () => {
     setLeftWidth(280);
@@ -153,6 +169,9 @@ export function LightLab() {
     setMode('edit');
     setDensity('compact');
     setZoomPreset(1);
+    setFps(PREVIEW_SPEC.fps);
+    setCapEnabled(false);
+    setCapPercent(100);
     localStorage.setItem('k1.leftWidth', '280');
     localStorage.setItem('k1.rightWidth', '320');
     localStorage.setItem('k1.libraryMini', 'false');
@@ -160,11 +179,14 @@ export function LightLab() {
     localStorage.setItem('k1.mode', 'edit');
     localStorage.setItem('k1.density', 'compact');
     localStorage.setItem('k1.zoomPreset', '1');
+    localStorage.setItem('k1.fps', String(PREVIEW_SPEC.fps));
+    localStorage.setItem('k1.capEnabled', 'false');
+    localStorage.setItem('k1.capPercent', '100');
     toast.success('Layout reset to defaults');
   };
   const rafRef = useRef<number | null>(null);
   const startRef = useRef<number | null>(null);
-  const [lastFrame, setLastFrame] = useState<Uint8Array | null>(null);
+  const lastFrameTimeRef = useRef<number>(0);
 
   const handleAddNode = (templateId: string) => {
     const newNode = createNode(
@@ -241,14 +263,25 @@ export function LightLab() {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
       startRef.current = null;
+      lastFrameTimeRef.current = 0;
       return;
     }
 
+    const frameInterval = 1000 / fps;
+    startRef.current = null;
+    lastFrameTimeRef.current = 0;
+
     const loop = (ts: number) => {
       if (startRef.current == null) startRef.current = ts;
-      const t = ts - startRef.current;
-      const { frames } = stubTick(nodes, wires, t);
-      setLastFrame(frames);
+      if (lastFrameTimeRef.current === 0) lastFrameTimeRef.current = ts - frameInterval;
+
+      const elapsed = ts - lastFrameTimeRef.current;
+      if (elapsed >= frameInterval) {
+        lastFrameTimeRef.current = ts;
+        const t = ts - startRef.current;
+        const { frames } = stubTick(nodes, wires, t);
+        setLastFrameRaw(frames);
+      }
       rafRef.current = requestAnimationFrame(loop);
     };
     rafRef.current = requestAnimationFrame(loop);
@@ -256,17 +289,45 @@ export function LightLab() {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     };
-  }, [playing, nodes, wires]);
+  }, [playing, nodes, wires, fps]);
+
+  useEffect(() => {
+    if (!lastFrameRaw) {
+      setLastFramePreview(null);
+      return;
+    }
+    if (!capEnabled) {
+      setLastFramePreview(lastFrameRaw);
+      return;
+    }
+    const capped = new Uint8Array(lastFrameRaw);
+    applyFrameCapRGB8(capped, capByte);
+    setLastFramePreview(capped);
+  }, [lastFrameRaw, capEnabled, capByte]);
 
   // Export current graph (stub)
-  const buildExportPayload = () => ({
-    nodes,
-    wires,
-    params: {},
-    preview: lastFrame ? Array.from(lastFrame as Uint8Array) : undefined,
-    framesMeta: PREVIEW_SPEC,
-    exportedAt: new Date().toISOString(),
-  });
+  const buildExportPayload = () => {
+    const previewFrame = lastFramePreview ? Array.from(new Uint8Array(lastFramePreview)) : undefined;
+    const meta = {
+      pixelCount: ENGINE_CONFIG.pixelCount,
+      colorFormat: ENGINE_CONFIG.colorFormat,
+      fps,
+      mapping: ENGINE_CONFIG.mapping,
+      ...(capEnabled ? { brightnessCap: capByte } : {}),
+    };
+
+    const framesMeta = { ...PREVIEW_SPEC, fps };
+
+    return {
+      nodes,
+      wires,
+      params: {},
+      preview: previewFrame,
+      framesMeta,
+      meta,
+      exportedAt: new Date().toISOString(),
+    };
+  };
 
   const handleExportCopy = async () => {
     const payload = {
@@ -282,7 +343,7 @@ export function LightLab() {
   };
 
   const handleExportDownload = () => {
-    const payload = { ...buildExportPayload(), meta: { pixelCount: ENGINE_CONFIG.pixelCount, colorFormat: ENGINE_CONFIG.colorFormat, fps: PREVIEW_SPEC.fps, mapping: ENGINE_CONFIG.mapping } };
+    const payload = buildExportPayload();
     const json = JSON.stringify(payload, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -328,12 +389,54 @@ export function LightLab() {
             setEdgeMode(next);
             localStorage.setItem('k1.edges', next);
           }}
+          capEnabled={capEnabled}
+          capPercent={capPercent}
+          onToggleCap={() => setCapEnabled((prev) => !prev)}
+          onCapPercentChange={(value) => setCapPercent(Math.min(100, Math.max(10, value)))}
+          fps={fps}
+          onFpsChange={(value) => {
+            if ([120, 60, 30].includes(value)) setFps(value);
+          }}
         />
       </div>
 
       {/* Left: Node Library */}
-      <div className="workspace__library">
-        <NodeLibrary onAddNode={handleAddNode} />
+      <div className="workspace__library relative">
+        <NodeLibrary
+          onAddNode={handleAddNode}
+          mini={libraryMini}
+          onToggleMini={() => setLibraryMini((v) => !v)}
+        />
+        {/* Right-edge drag handle for Library width */}
+        {!libraryMini && (
+          <div
+            className="resize-handle-y"
+            style={{ right: -4 }}
+            role="separator"
+            aria-orientation="vertical"
+            tabIndex={0}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              const startX = e.clientX;
+              const startW = leftWidth;
+              const onMove = (ev: MouseEvent) => {
+                const dx = ev.clientX - startX;
+                const raw = startW + dx;
+                // snap to 240/280/320/360 range and clamp
+                const snaps = [240, 280, 320, 360];
+                const clamped = Math.max(240, Math.min(360, raw));
+                const snapped = snaps.reduce((a, b) => (Math.abs(b - clamped) < Math.abs(a - clamped) ? b : a), snaps[0]);
+                setLeftWidth(snapped);
+              };
+              const onUp = () => {
+                window.removeEventListener('mousemove', onMove);
+                window.removeEventListener('mouseup', onUp);
+              };
+              window.addEventListener('mousemove', onMove);
+              window.addEventListener('mouseup', onUp);
+            }}
+          />
+        )}
       </div>
       
       {/* Center: Canvas */}
@@ -347,19 +450,46 @@ export function LightLab() {
           onNodeDelete={handleNodeDelete}
           onWireCreate={handleWireCreate}
           onWireDelete={handleWireDelete}
-<<<<<<< HEAD
           showGrid={gridOn}
-=======
->>>>>>> origin/v0-friendly
+          orthogonal={edgeMode === 'orthogonal'}
+          zoomPreset={zoomPreset}
         />
       </div>
 
       {/* Right: Inspector */}
-      <div className="workspace__inspector">
+      <div className="workspace__inspector relative">
         <NodeInspector
           node={selectedNode}
           onParameterChange={handleParameterChange}
           onDeleteNode={handleNodeDelete}
+        />
+        {/* Left-edge drag handle for Inspector width */}
+        <div
+          className="resize-handle-y"
+          style={{ left: -4 }}
+          role="separator"
+          aria-orientation="vertical"
+          tabIndex={0}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            const startX = e.clientX;
+            const startW = rightWidth;
+            const onMove = (ev: MouseEvent) => {
+              const dx = startX - ev.clientX;
+              const raw = startW + dx;
+              // snap to 280/320/360/420 range and clamp
+              const snaps = [280, 320, 360, 420];
+              const clamped = Math.max(280, Math.min(420, raw));
+              const snapped = snaps.reduce((a, b) => (Math.abs(b - clamped) < Math.abs(a - clamped) ? b : a), snaps[0]);
+              setRightWidth(snapped);
+            };
+            const onUp = () => {
+              window.removeEventListener('mousemove', onMove);
+              window.removeEventListener('mouseup', onUp);
+            };
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('mouseup', onUp);
+          }}
         />
       </div>
     </div>

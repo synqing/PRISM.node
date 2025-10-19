@@ -1,7 +1,9 @@
-import { Play, Pause, RotateCcw, Save, Upload, Download, Maximize2, Settings } from 'lucide-react';
+import { Play, Pause, RotateCcw, Save, Upload, Download, Maximize2, Settings, SlidersHorizontal } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { Slider } from '../ui/slider';
 
 interface K1ToolbarProps {
   playing?: boolean;
@@ -23,6 +25,12 @@ interface K1ToolbarProps {
   onToggleGrid?: () => void;
   orthogonal?: boolean;
   onToggleEdges?: () => void;
+  capEnabled?: boolean;
+  capPercent?: number;
+  onToggleCap?: () => void;
+  onCapPercentChange?: (value: number) => void;
+  fps?: number;
+  onFpsChange?: (fps: number) => void;
 }
 
 export function K1Toolbar({
@@ -45,7 +53,16 @@ export function K1Toolbar({
   onToggleGrid,
   orthogonal = false,
   onToggleEdges,
+  capEnabled = false,
+  capPercent = 100,
+  onToggleCap,
+  onCapPercentChange,
+  fps = 120,
+  onFpsChange,
 }: K1ToolbarProps) {
+  const capByte = Math.max(0, Math.min(255, Math.round((capPercent / 100) * 255)));
+  const fpsOptions: number[] = [120, 60, 30];
+
   return (
     <div className="h-14 glass-panel glass-corners frosted-texture border-b flex items-center justify-between px-4 relative z-20">
       {/* Left: Branding */}
@@ -121,6 +138,21 @@ export function K1Toolbar({
           </Button>
         ))}
 
+        <div className="flex items-center gap-1 ml-1">
+          {fpsOptions.map((option) => (
+            <Button
+              key={option}
+              variant={fps === option ? 'default' : 'outline'}
+              size="sm"
+              className="h-9 px-3 font-mono"
+              onClick={() => onFpsChange?.(option)}
+              title={`Preview ${option} FPS`}
+            >
+              {option}
+            </Button>
+          ))}
+        </div>
+
         <Button
           variant={showGrid ? 'default' : 'outline'}
           size="sm"
@@ -130,6 +162,53 @@ export function K1Toolbar({
         >
           Grid
         </Button>
+
+        <div className="flex items-center gap-1">
+          <Button
+            variant={capEnabled ? 'default' : 'outline'}
+            size="sm"
+            className="h-9 px-3"
+            onClick={onToggleCap}
+            aria-pressed={capEnabled}
+            title={capEnabled ? `Disable brightness cap (${capPercent}%)` : 'Enable brightness cap'}
+          >
+            Cap
+          </Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 w-9 p-0"
+                title="Adjust brightness cap"
+                aria-label="Adjust brightness cap"
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="center" sideOffset={8} className="w-56 space-y-3 glass-panel glass-corners p-4">
+              <div className="flex items-center justify-between text-xs uppercase tracking-wide text-[var(--k1-text-dim)]">
+                <span>Brightness cap</span>
+                <span className="font-mono text-[var(--k1-text)]">
+                  {capEnabled ? `${capPercent}%` : 'Off'}
+                </span>
+              </div>
+              <Slider
+                value={[capPercent]}
+                min={10}
+                max={100}
+                step={5}
+                onValueChange={([value]) => {
+                  if (value != null) onCapPercentChange?.(value);
+                }}
+                disabled={!capEnabled}
+              />
+              <p className="text-[10px] text-[var(--k1-text-dim)]">
+                Max byte: <span className="font-mono text-[var(--k1-text)]">{capEnabled ? capByte : 255}</span>
+              </p>
+            </PopoverContent>
+          </Popover>
+        </div>
 
         <Button
           variant={orthogonal ? 'default' : 'outline'}
@@ -141,7 +220,7 @@ export function K1Toolbar({
           {orthogonal ? 'Ortho' : 'Bezier'}
         </Button>
         <span className="ml-2 text-xs font-mono text-[var(--k1-text-dim)]" aria-live="polite">
-          edges: {orthogonal ? 'orthogonal' : 'bezier'}
+          view: {fps}fps · edges: {orthogonal ? 'orthogonal' : 'bezier'}
         </span>
       </div>
 

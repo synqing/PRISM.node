@@ -111,7 +111,7 @@ export function tickGraph(nodes: any[], wires: any[], t: number): Uint8Array {
       const a = Math.min(start, end), b = Math.max(start, end);
       const startHex = (n?.parameters?.find((p: any) => p.id === 'startColor')?.value as string) || '#000000';
       const endHex = (n?.parameters?.find((p: any) => p.id === 'endColor')?.value as string) || '#FFFFFF';
-      const lut = buildHsvLut(startHex, endHex); // 256 x RGB8
+      const lut = buildOklchLut(startHex, endHex); // 256 x RGB8
       out = u.map((uu) => {
         const tt = clamp01((uu - a) / Math.max(1e-6, (b - a)));
         const idx = Math.max(0, Math.min(255, Math.round(tt * 255))) * 3;
@@ -170,26 +170,78 @@ export const stubTick: GraphTick = (nodes, wires, t) => {
   return { frames };
 };
 
-// Build a 256-step HSV gradient LUT between two hex colors (fast, circular hue)
+// Build a 256-step OKLCH gradient LUT between two hex colors (perceptual, gamma ~2.2)
 function hexToRgb(hex: string): RGB {
   const m = /^#?([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(hex.trim());
   if (!m) return [0, 0, 0];
   return [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
 }
 
-function buildHsvLut(startHex: string, endHex: string): Uint8Array {
-  const a = rgbToHsv(hexToRgb(startHex));
-  const b = rgbToHsv(hexToRgb(endHex));
+// sRGB <-> Linear helpers
+function srgbToLinear(c: number) {
+  c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+}
+function linearToSrgb(c: number) {
+  const v = c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1/2.4) - 0.055; return Math.round(Math.max(0, Math.min(1, v)) * 255);
+}
+
+// Linear sRGB -> OKLab
+function linSrgbToOklab(r: number, g: number, b: number): [number, number, number] {
+  const l = 0.4122214708*r + 0.5363325363*g + 0.0514459929*b;
+  const m = 0.2119034982*r + 0.6806995451*g + 0.1073969566*b;
+  const s = 0.0883024619*r + 0.2817188376*g + 0.6299787005*b;
+  const l_ = Math.cbrt(l);
+  const m_ = Math.cbrt(m);
+  const s_ = Math.cbrt(s);
+  const L = 0.2104542553*l_ + 0.7936177850*m_ - 0.0040720468*s_;
+  const a = 1.9779984951*l_ - 2.4285922050*m_ + 0.4505937099*s_;
+  const b2 = 0.0259040371*l_ + 0.7827717662*m_ - 0.8086757660*s_;
+  return [L, a, b2];
+}
+
+// OKLab -> linear sRGB
+function oklabToLinSrgb(L: number, a: number, b: number): [number, number, number] {
+  const l_ = Math.pow(L + 0.3963377774*a + 0.2158037573*b, 3);
+  const m_ = Math.pow(L - 0.1055613458*a - 0.0638541728*b, 3);
+  const s_ = Math.pow(L - 0.0894841775*a - 1.2914855480*b, 3);
+  const r = + 4.0767416621*l_ - 3.3077115913*m_ + 0.2309699292*s_;
+  const g = - 1.2684380046*l_ + 2.6097574011*m_ - 0.3413193965*s_;
+  const bl = + 0.0041960863*l_ - 0.7034186147*m_ + 1.6990627610*s_;
+  return [r, g, bl];
+}
+
+function rgbToOklab([r,g,b]: RGB): [number, number, number] {
+  return linSrgbToOklab(srgbToLinear(r), srgbToLinear(g), srgbToLinear(b));
+}
+
+function oklabToRgb(L: number, a: number, b: number): RGB {
+  const [rL, gL, bL] = oklabToLinSrgb(L, a, b);
+  return [linearToSrgb(rL), linearToSrgb(gL), linearToSrgb(bL)];
+}
+
+function buildOklchLut(startHex: string, endHex: string): Uint8Array {
+  // Convert endpoints to OKLCH
+  const [La, aa, ba] = rgbToOklab(hexToRgb(startHex));
+  const [Lb, ab, bb] = rgbToOklab(hexToRgb(endHex));
+  const Ca = Math.hypot(aa, ba);
+  const Cb = Math.hypot(ab, bb);
+  const ha = Math.atan2(ba, aa); // radians
+  const hb = Math.atan2(bb, ab);
   // shortest-arc hue interpolation
-  let dh = b[0] - a[0];
-  if (dh > 0.5) dh -= 1; else if (dh < -0.5) dh += 1;
+  let dh = hb - ha; if (dh > Math.PI) dh -= 2*Math.PI; else if (dh < -Math.PI) dh += 2*Math.PI;
   const lut = new Uint8Array(256 * 3);
   for (let i = 0; i < 256; i++) {
     const t = i / 255;
-    const h = (a[0] + dh * t + 1) % 1;
-    const s = a[1] + (b[1] - a[1]) * t;
-    const v = a[2] + (b[2] - a[2]) * t;
-    const [r, g, bl] = hsvToRgb([h, s, v]);
+    const L = La + (Lb - La) * t;
+    const C = Ca + (Cb - Ca) * t;
+    const h = ha + dh * t;
+    const a = C * Math.cos(h);
+    const b = C * Math.sin(h);
+    const [rL, gL, bL] = oklabToLinSrgb(L, a, b);
+    // simple gamut clip to [0,1] in linear, then back to sRGB
+    const r = linearToSrgb(Math.max(0, Math.min(1, rL)));
+    const g = linearToSrgb(Math.max(0, Math.min(1, gL)));
+    const bl = linearToSrgb(Math.max(0, Math.min(1, bL)));
     const j = i * 3; lut[j] = r; lut[j + 1] = g; lut[j + 2] = bl;
   }
   return lut;
