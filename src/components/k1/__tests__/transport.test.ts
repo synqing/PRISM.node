@@ -11,16 +11,19 @@ describe('crc32', () => {
 
 describe('TLV plan', () => {
   it('respects chunk sizes', () => {
-    const payload = new Uint8Array(PUT_DATA_MAX * 2 + 10);
-    const plan = makePutPlan('test.bin', payload, PUT_DATA_MAX);
-    const dataFrames = plan.frames.filter((f) => f[0] === 0x11);
-    // First byte 0x11 denotes our PUT_DATA type in this variant
-    expect(dataFrames.length).toBe(3);
+    const payload = new Uint8Array(PUT_DATA_MAX * 2 + 10).fill(0xAB);
+    const plan = makePutPlan(payload);
+    const dataTlvs = plan.tlvs.filter((t) => t.type === TLVType.PUT_DATA);
+    expect(dataTlvs.length).toBe(3);
+    // Check sizes of each data TLV excluding 4-byte offset header
+    const sizes = dataTlvs.map((t) => t.value.length - 4);
+    expect(sizes[0]).toBe(PUT_DATA_MAX);
+    expect(sizes[1]).toBe(PUT_DATA_MAX);
+    expect(sizes[2]).toBe(10);
   });
 
   it('rejects oversize payload', () => {
     const payload = new Uint8Array(PAYLOAD_MAX + 1);
-    expect(() => makePutPlan('big.bin', payload)).toThrow();
+    expect(() => makePutPlan(payload)).toThrow();
   });
 });
-
